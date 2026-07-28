@@ -683,13 +683,18 @@ function convertRohlikRecipe(cand, det, group){
   if (!det || !det.ingredients || !det.ingredients.length) return null;
   const ing = det.ingredients.map(x=>{
     const t = (x.ingredient_name || "").trim();
-    const m = t.match(/^([\d.,]+)\s*(g|kg|ml|l|ks|lžíce|lžička|svazek|stroužky|stroužek|balení|plátky)?\s+(.+)$/i);
+    const m = t.match(/^([\d.,]+(?:\s*[–-]\s*[\d.,]+)?)\s*(g|kg|ml|l|ks|tsp|tbsp|lžíce|lžic|lžička|lžičky|špetka|špetky|hrst|hrsti|svazek|svazky|stroužky|stroužků|stroužek|balení|plátky|plátků)?\s+(.+)$/i);
     if (m){
-      let q = parseFloat(m[1].replace(",", ".")) || 1;
+      // a range like "200–250" → take the upper bound (better to have enough)
+      const nums = m[1].split(/[–-]/).map(x=>parseFloat(x.replace(",", ".")));
+      let q = nums[nums.length-1] || 1;
       let u = (m[2] || "ks").toLowerCase();
       if (u === "kg"){ q *= 1000; u = "g"; }
       if (u === "l"){ q *= 1000; u = "ml"; }
-      if (u === "stroužek") u = "stroužky";
+      if (/^(tsp|tbsp|lžíce|lžic|lžička|lžičky|špetka|špetky|hrst|hrsti)$/.test(u)){ q = 1; u = "ks"; }
+      if (/^stroužk/.test(u) || u === "stroužek") u = "stroužky";
+      if (u === "svazky") u = "svazek";
+      if (u === "plátků") u = "plátky";
       return [m[3], q, u];
     }
     return [t, 1, "ks"];
@@ -1082,6 +1087,16 @@ async function mcpCall(tool, input, isRead){
     throw e;
   }
 }
+// typical piece weights (g) for produce sold by weight, to convert
+// "2 ks cibule" into the right number of weight-denominated packages
+const PIECE_G = [["cibul",150],["paprik",150],["rajc",120],["citron",100],["limet",80],
+  ["okurk",300],["mrkev",100],["avokad",200],["cuket",300],["lilek",300],["kvetak",800],
+  ["brokolic",500],["batat",250],["jablk",150],["cesnek",50],["brambor",150],["porek",200]];
+function pieceWeight(name){
+  const n = stripD(name);
+  for (const [k,w] of PIECE_G) if (n.includes(k)) return w;
+  return null;
+}
 function chooseMatches(item, products){
   const tokens = stripD(item.n).split(/\s+/).filter(w=>w.length>2);
   const cands = products.filter(p=>p.inStock).map(p=>{
@@ -1091,8 +1106,16 @@ function chooseMatches(item, products){
     let packages = 1, unitOk = false;
     if ((item.u==="g" || item.u==="ml") && amt && amt.u===item.u){
       unitOk = true; packages = Math.max(1, Math.ceil(item.q / amt.q));
-    } else if (COUNT.has(item.u) && amt && amt.u==="ks"){
-      unitOk = true; packages = Math.max(1, Math.ceil(item.q / amt.q));
+    } else if (COUNT.has(item.u)){
+      const pw = pieceWeight(item.n);
+      if (amt && amt.u==="ks"){
+        unitOk = true; packages = Math.max(1, Math.ceil(item.q / amt.q));
+      } else if (amt && amt.u==="g" && pw){
+        unitOk = true; packages = Math.max(1, Math.ceil(item.q * pw / amt.q));
+      } else if (item.u==="ks" && pw){
+        // package size unknown: assume one piece per package rather than under-buying
+        packages = Math.max(1, Math.round(item.q));
+      }
     }
     return { p, hits, packages, cost: packages*(p.price||0), unitOk };
   });
