@@ -67,7 +67,8 @@ Goals the generator aims for across the 5 weekly dinners — not hard constraint
 
 ## 7. Recipes
 
-- **Source: recepty.cz + AI-generated.** DB-first rule: prefer favorites and rubric-satisfying DB recipes; AI fills remaining slots and adapts.
+- **Decision (2026-07-28): primary source is the Rohlík MCP recipe DB** (`search_recipes_by_vector_similarity` + `get_recipe_detail`) — it arrives pre-structured with ingredient→product mapping, which removes the free-text parsing problem for those recipes. AI still generates/adapts recipes the Rohlík DB can't cover; recepty.cz seed-import is deferred (kept below as the original plan, revisit if Rohlík coverage proves too thin).
+- **Original plan — source: recepty.cz + AI-generated.** DB-first rule: prefer favorites and rubric-satisfying DB recipes; AI fills remaining slots and adapts.
 - AI also (a) parses recepty.cz free-text into structured ingredient lists, (b) writes brief steps where missing.
 - Each recipe needs: **shopping list (primary)** + **brief steps**.
 - **Persisted once generated** — the DB grows over time, AI usage drops.
@@ -112,6 +113,6 @@ Goals the generator aims for across the 5 weekly dinners — not hard constraint
 ## 11. Open decisions
 
 - Comment persistence: two-tier model above — confirm or adjust.
-- recepty.cz: seed-import (recommended) vs live scrape.
+- ~~recepty.cz: seed-import (recommended) vs live scrape.~~ **Resolved 2026-07-28: Rohlík MCP recipe DB is the primary source for now; recepty.cz deferred (see §7).**
 - Backend provider (Supabase recommended).
 - Whether the artifact prototype (step 2) is the throwaway PoC or the seed of the real frontend.

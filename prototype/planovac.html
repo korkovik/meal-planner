@@ -97,7 +97,10 @@
   .empty { text-align: center; color: var(--muted); padding: 46px 20px; border: 1px dashed var(--line); border-radius: 10px; }
   details.shop { margin-top: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
   details.shop summary { cursor: pointer; font-weight: 600; }
-  details.shop ul { columns: 2; margin: 10px 0 4px; padding-left: 20px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  details.shop ul { columns: 2; margin: 10px 0 4px; padding-left: 0; list-style: none; font-size: 14px; font-variant-numeric: tabular-nums; }
+  details.shop li label { display: flex; gap: 7px; align-items: baseline; cursor: pointer; }
+  details.shop li label:has(input:not(:checked)) { color: var(--muted); text-decoration: line-through; }
+  input[type="checkbox"] { accent-color: var(--accent); }
   @media (max-width: 620px) { details.shop ul { columns: 1; } }
   dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); max-width: 560px; width: calc(100vw - 40px); padding: 18px; }
   dialog::backdrop { background: rgba(20, 24, 18, 0.45); }
@@ -172,8 +175,14 @@
       <div id="plan"><div class="empty">Zatím žádný plán. Nastavte rodinu vlevo a vygenerujte první týden.</div></div>
       <details class="shop" id="shop" hidden>
         <summary>Nákupní seznam na týden</summary>
+        <p class="hint" style="margin:8px 0 0">Odškrtněte, co už máte doma — do košíku jde jen zaškrtnuté.</p>
         <ul id="shopList"></ul>
-        <p class="hint">Množství podle velikosti rodiny. V další verzi se odsud plní košík na rohlik.cz.</p>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="cartBtn">Sestavit košík na Rohlíku</button>
+          <span class="hint" id="cartMsg" style="margin:0"></span>
+        </div>
+        <p class="hint">Prototyp zkopíruje objednávku — vložte ji Claudovi a ten naplní košík na rohlik.cz.
+        Ve finální aplikaci tohle tlačítko plní košík rovnou.</p>
       </details>
       <footer class="note">
         Prototyp: recepty pochází z vestavěné ukázkové databáze a poznámky vyhodnocuje jednoduchý
@@ -481,8 +490,9 @@ function shopping(){
   }
   return [...agg.entries()].map(([k,q])=>{
     const [n,u] = k.split("|");
-    return COUNT.has(u) ? `${n} — ${Math.ceil(q)} ${u}` : `${n} — ${fmtQty(q)} ${u}`;
-  }).sort((a,b)=>a.localeCompare(b,"cs"));
+    const txt = COUNT.has(u) ? `${n} — ${Math.ceil(q)} ${u}` : `${n} — ${fmtQty(q)} ${u}`;
+    return { n, txt };
+  }).sort((a,b)=>a.txt.localeCompare(b.txt,"cs"));
 }
 
 // ---------- rendering ----------
@@ -534,7 +544,8 @@ function render(){
     </article>`;
   }).join("");
   $("shop").hidden = false;
-  $("shopList").innerHTML = shopping().map(l=>`<li>${l}</li>`).join("");
+  $("shopList").innerHTML = shopping().map((l,i)=>
+    `<li><label><input type="checkbox" checked data-shop="${i}"> ${l.txt}</label></li>`).join("");
 }
 
 // ---------- picker ----------
@@ -588,6 +599,23 @@ $("standingInput").addEventListener("keydown", (e)=>{
 $("oneoffInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"||e.key==="Return") generate(); });
 $("pickSearch").addEventListener("input", renderPicker);
 $("pickClose").addEventListener("click", ()=>$("picker").close());
+$("cartBtn").addEventListener("click", async ()=>{
+  const items = shopping().filter((_,i)=>{
+    const cb = document.querySelector(`input[data-shop="${i}"]`);
+    return !cb || cb.checked;
+  });
+  if (!items.length){ $("cartMsg").textContent = "Nic není zaškrtnuto."; return; }
+  const meals = S.plan.map(id=>R.find(r=>r.id===id).n);
+  const text = "Naplň mi prosím košík na rohlik.cz podle tohoto seznamu (kupuj celá balení):\n"
+    + items.map(l=>"- "+l.txt).join("\n")
+    + "\n\nJídelníček týdne: " + meals.join("; ");
+  try {
+    await navigator.clipboard.writeText(text);
+    $("cartMsg").textContent = "Objednávka zkopírována — vložte ji Claudovi.";
+  } catch {
+    window.prompt("Zkopírujte objednávku ručně:", text);
+  }
+});
 
 $("adults").value = S.adults; $("kids").value = S.kids;
 render();
