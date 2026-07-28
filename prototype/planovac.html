@@ -103,6 +103,7 @@
   input[type="checkbox"] { accent-color: var(--accent); }
   @media (max-width: 620px) { details.shop ul { columns: 1; } }
   dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); max-width: 560px; width: calc(100vw - 40px); padding: 18px; }
+  select { font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; }
   dialog::backdrop { background: rgba(20, 24, 18, 0.45); }
   .pick-list { max-height: 55vh; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
   .pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
@@ -170,6 +171,12 @@
       </div>
 
       <div class="panel">
+        <p class="label">Vlastní recepty</p>
+        <p class="hint" style="margin:0 0 8px" id="userRecCount"></p>
+        <button id="addRecipeBtn">Přidat vlastní recept</button>
+      </div>
+
+      <div class="panel">
         <p class="label">Stálé poznámky</p>
         <ul class="note-list" id="standingList"></ul>
         <input type="text" id="standingInput" placeholder="např. děti nejedí ryby — Enter přidá">
@@ -204,6 +211,51 @@
     </section>
   </div>
 </div>
+
+<dialog id="recipeDlg">
+  <p class="label" style="margin-bottom:8px">Nový vlastní recept</p>
+  <div style="display:flex; flex-direction:column; gap:9px">
+    <input type="text" id="rName" placeholder="Název jídla *">
+    <div class="row">
+      <label>Čas <input type="number" id="rTime" min="5" max="240" value="40"> min</label>
+      <select id="rCuisine">
+        <option value="česká">česká</option><option value="slovenská">slovenská</option>
+        <option value="indická">indická</option><option value="italská">italská</option>
+        <option value="španělská">španělská</option><option value="mexická">mexická</option>
+        <option value="asijská">asijská</option><option value="francouzská">francouzská</option>
+        <option value="německá">německá</option><option value="jiná">jiná</option>
+      </select>
+      <select id="rProtein">
+        <option value="kuře">kuře</option><option value="krůta">krůta</option>
+        <option value="hovězí">hovězí</option><option value="vepřové">vepřové</option>
+        <option value="ryba">ryba</option><option value="luštěniny">luštěniny</option>
+        <option value="vejce">vejce</option><option value="sýr">sýr</option><option value="tofu">tofu</option>
+      </select>
+    </div>
+    <div class="row" style="font-size:13.5px">
+      <label><input type="checkbox" id="rVeg" checked> obsahuje zeleninu</label>
+      <label><input type="checkbox" id="rWg"> celozrnné</label>
+      <label><input type="checkbox" id="rFr"> smažené</label>
+    </div>
+    <div>
+      <p class="label" style="margin-bottom:4px">Obsahuje alergeny</p>
+      <div class="chips" id="rObs"></div>
+    </div>
+    <div>
+      <p class="label" style="margin-bottom:4px">Suroviny (na 4 porce, jedna na řádek: „400 g čočka“, „2 ks cibule“) *</p>
+      <textarea id="rIng" rows="5" style="width:100%; font:inherit; font-size:13.5px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:7px; padding:7px 10px"></textarea>
+    </div>
+    <div>
+      <p class="label" style="margin-bottom:4px">Postup (jeden krok na řádek)</p>
+      <textarea id="rSteps" rows="3" style="width:100%; font:inherit; font-size:13.5px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:7px; padding:7px 10px"></textarea>
+    </div>
+    <p class="hint" id="rErr" style="margin:0; color:var(--danger)"></p>
+    <div class="row" style="justify-content:end">
+      <button id="rCancel">Zrušit</button>
+      <button class="primary" id="rSave">Uložit recept</button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="picker">
   <p class="label" style="margin-bottom:4px">Vybrat jídlo ručně</p>
@@ -359,6 +411,99 @@ const R = [
   {id:48,n:"Španělská bramborová tortilla se salátem",t:35,k:"španělská",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce"],
    ing:[["brambory",700,"g"],["vejce",8,"ks"],["cibule",2,"ks"],["olivový olej",60,"ml"],["míchaný salát",200,"g"]],
    st:["Brambory s cibulí pomalu osmahněte na oleji doměkka.","Zalijte rozšlehanými vejci a opečte tortillu z obou stran.","Podávejte s čerstvým salátem."]},
+  {id:49,n:"Rajská omáčka s hovězím a těstovinami",t:75,k:"česká",p:"hovězí",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["hovězí zadní",500,"g"],["rajčatový protlak",200,"g"],["cibule",2,"ks"],["těstoviny",400,"g"],["cukr",20,"g"]],
+   st:["Maso uvařte v osolené vodě s cibulí doměkka.","Z protlaku a vývaru připravte sladkokyselou omáčku.","Podávejte s těstovinami."]},
+  {id:50,n:"Koprová omáčka s vejci a bramborem",t:35,k:"česká",p:"vejce",wg:0,fr:0,veg:0,obs:["vejce","laktóza","lepek"],
+   ing:[["smetana na vaření",250,"ml"],["kopr",1,"svazek"],["vejce",8,"ks"],["brambory",800,"g"],["hladká mouka",40,"g"]],
+   st:["Ze smetany, mouky a vývaru uvařte hladkou omáčku.","Přidejte sekaný kopr a dochuťte octem a cukrem.","Podávejte s vejci natvrdo a bramborem."]},
+  {id:51,n:"Špenát s bramborovým knedlíkem a vejcem",t:40,k:"česká",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","lepek"],
+   ing:[["špenát",600,"g"],["bramborový knedlík",1,"balení"],["vejce",4,"ks"],["česnek",3,"stroužky"],["cibule",1,"ks"]],
+   st:["Špenát poduste s cibulí a česnekem.","Knedlík ohřejte v páře, vejce usmažte jako volská oka."]},
+  {id:52,n:"Kulajda",t:40,k:"česká",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","laktóza"],
+   ing:[["brambory",600,"g"],["žampiony",300,"g"],["smetana na vaření",250,"ml"],["kopr",1,"svazek"],["vejce",4,"ks"]],
+   st:["Brambory a houby uvařte v osolené vodě.","Zjemněte smetanou, dochuťte koprem a octem.","Do každé porce vložte zastřené vejce."]},
+  {id:53,n:"Bramborový guláš s klobásou",t:45,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové"],
+   ing:[["brambory",900,"g"],["klobása",300,"g"],["cibule",2,"ks"],["mletá paprika",15,"g"],["majoránka",5,"g"]],
+   st:["Cibuli osmahněte s paprikou, přidejte brambory a podlijte.","Vařte doměkka, přidejte klobásu a majoránku."]},
+  {id:54,n:"Kuřecí řízečky z trouby s kaší a okurkovým salátem",t:50,k:"česká",p:"kuře",wg:0,fr:0,veg:1,obs:["lepek","vejce","laktóza"],
+   ing:[["kuřecí prsa",550,"g"],["strouhanka",100,"g"],["vejce",2,"ks"],["brambory",800,"g"],["okurka",2,"ks"],["mléko",150,"ml"]],
+   st:["Obalené řízečky pečte na plechu 20 minut na 200 °C.","Připravte bramborovou kaši a okurkový salát."]},
+  {id:55,n:"Rybí filé s dušenou mrkví a bramborem",t:35,k:"česká",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby","laktóza"],
+   ing:[["rybí filé",550,"g"],["mrkev",5,"ks"],["brambory",800,"g"],["máslo",40,"g"],["citron",1,"ks"]],
+   st:["Filé opečte na másle a zakápněte citronem.","Podávejte s dušenou mrkví a vařeným bramborem."]},
+  {id:56,n:"Zapečené brambory s vejci a brokolicí",t:55,k:"česká",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","laktóza"],
+   ing:[["brambory",900,"g"],["vejce",6,"ks"],["brokolice",300,"g"],["sýr na strouhání",150,"g"],["smetana na vaření",200,"ml"]],
+   st:["Předvařené brambory proložte brokolicí a vejci.","Zalijte smetanou, posypte sýrem a zapečte 25 minut."]},
+  {id:57,n:"Těstovinový salát s kuřecím a zeleninou",t:25,k:"česká",p:"kuře",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["těstoviny",350,"g"],["kuřecí prsa",400,"g"],["cherry rajčata",250,"g"],["okurka",1,"ks"],["kukuřice",150,"g"],["jogurt bílý",150,"g"]],
+   st:["Uvařte těstoviny a orestujte kuřecí kousky.","Smíchejte se zeleninou a jogurtovým dresinkem."]},
+  {id:58,n:"Segedínský guláš s knedlíkem",t:90,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","lepek","laktóza"],
+   ing:[["vepřová plec",600,"g"],["kysané zelí",500,"g"],["smetana na vaření",250,"ml"],["cibule",2,"ks"],["houskový knedlík",1,"balení"]],
+   st:["Maso poduste s cibulí a paprikou doměkka.","Přidejte zelí, zjemněte smetanou a podávejte s knedlíkem."]},
+  {id:59,n:"Čočkový salát s pečenou zeleninou a balkánským sýrem",t:35,k:"česká",p:"luštěniny",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["čočka",300,"g"],["paprika",2,"ks"],["cuketa",1,"ks"],["balkánský sýr",150,"g"],["červená cibule",1,"ks"]],
+   st:["Zeleninu upečte na 200 °C dozlatova.","Smíchejte s uvařenou čočkou, sýrem a zálivkou."]},
+  {id:60,n:"Žemlovka s jablky a tvarohem",t:50,k:"česká",p:"sýr",wg:0,fr:0,veg:0,obs:["lepek","laktóza","vejce"],
+   ing:[["veka",300,"g"],["jablka",4,"ks"],["tvaroh",250,"g"],["mléko",400,"ml"],["vejce",2,"ks"],["skořice",5,"g"]],
+   st:["Veku namočte v mléce s vejci.","Vrstvěte s jablky a tvarohem, zapečte 30 minut."]},
+  {id:61,n:"Palačinky s tvarohem a ovocem",t:35,k:"česká",p:"sýr",wg:0,fr:0,veg:0,obs:["lepek","laktóza","vejce"],
+   ing:[["hladká mouka",300,"g"],["mléko",500,"ml"],["vejce",3,"ks"],["tvaroh",250,"g"],["sezónní ovoce",300,"g"]],
+   st:["Z těsta usmažte tenké palačinky.","Plňte slazeným tvarohem a ovocem."]},
+  {id:62,n:"Zemiakové placky s česnekem",t:35,k:"slovenská",p:"vejce",wg:0,fr:1,veg:0,obs:["lepek","vejce"],
+   ing:[["brambory",900,"g"],["hladká mouka",120,"g"],["vejce",2,"ks"],["česnek",4,"stroužky"],["majoránka",5,"g"]],
+   st:["Nastrouhané brambory smíchejte s moukou, vejci a česnekem.","Smažte placky dozlatova z obou stran."]},
+  {id:63,n:"Strapačky se zelím a slaninou",t:50,k:"slovenská",p:"vepřové",wg:0,fr:0,veg:1,obs:["lepek","vepřové"],
+   ing:[["brambory",700,"g"],["hrubá mouka",250,"g"],["kysané zelí",400,"g"],["anglická slanina",150,"g"],["cibule",1,"ks"]],
+   st:["Z bramborového těsta zavařte strapačky.","Smíchejte s dušeným zelím a posypte výpečky ze slaniny."]},
+  {id:64,n:"Chana masala s rýží",t:35,k:"indická",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["cizrna",480,"g"],["krájená rajčata",400,"g"],["cibule",2,"ks"],["garam masala",15,"g"],["rýže basmati",320,"g"]],
+   st:["Cibuli osmahněte s kořením, přidejte rajčata a cizrnu.","Duste 15 minut a podávejte s rýží."]},
+  {id:65,n:"Palak paneer s naanem",t:40,k:"indická",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza","lepek"],
+   ing:[["špenát",600,"g"],["paneer",300,"g"],["smetana na vaření",150,"ml"],["naan",4,"ks"],["zázvor",20,"g"]],
+   st:["Špenát poduste s česnekem a zázvorem a rozmixujte.","Přidejte opečený paneer a smetanu, podávejte s naanem."]},
+  {id:66,n:"Butter chicken s rýží",t:50,k:"indická",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kuřecí stehenní řízky",550,"g"],["máslo",60,"g"],["rajčatový protlak",150,"g"],["smetana na vaření",200,"ml"],["rýže basmati",320,"g"]],
+   st:["Marinované kuře opečte.","Duste v máslové rajčatové omáčce se smetanou, podávejte s rýží."]},
+  {id:67,n:"Aloo gobi s cizrnou a rýží",t:35,k:"indická",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["květák",1,"ks"],["brambory",500,"g"],["cizrna",400,"g"],["kurkuma",10,"g"],["rýže basmati",320,"g"]],
+   st:["Květák a brambory orestujte s kořením.","Přidejte cizrnu, podlijte a duste doměkka."]},
+  {id:68,n:"Kuřecí korma s rýží",t:45,k:"indická",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza","ořechy"],
+   ing:[["kuřecí prsa",500,"g"],["kešu",80,"g"],["smetana na vaření",200,"ml"],["cibule",2,"ks"],["rýže basmati",320,"g"]],
+   st:["Z cibule a kešu umixujte základ omáčky.","Přidejte opečené kuře a smetanu, duste 20 minut."]},
+  {id:69,n:"Tandoori kuře s rýží a okurkovou raitou",t:50,k:"indická",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kuřecí stehna",700,"g"],["jogurt bílý",300,"g"],["tandoori koření",20,"g"],["okurka",1,"ks"],["rýže basmati",320,"g"]],
+   st:["Kuře marinujte v jogurtu s kořením a upečte.","Podávejte s rýží a okurkovou raitou."]},
+  {id:70,n:"Lasagne s mletým hovězím",t:90,k:"italská",p:"hovězí",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["mleté hovězí",500,"g"],["lasagne pláty",250,"g"],["krájená rajčata",800,"g"],["mléko",500,"ml"],["sýr na strouhání",150,"g"]],
+   st:["Připravte masové ragú a bešamel.","Vrstvěte s pláty, posypte sýrem a pečte 40 minut."]},
+  {id:71,n:"Houbové rizoto",t:40,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["rýže arborio",320,"g"],["houby",400,"g"],["cibule",1,"ks"],["parmazán",70,"g"],["máslo",40,"g"]],
+   st:["Houby orestujte, přidejte rýži a postupně podlévejte.","Nakonec vmíchejte máslo a parmazán."]},
+  {id:72,n:"Těstoviny s brokolicí, česnekem a parmazánem",t:20,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["těstoviny",400,"g"],["brokolice",500,"g"],["česnek",4,"stroužky"],["parmazán",60,"g"],["olivový olej",50,"ml"]],
+   st:["Brokolici uvařte s těstovinami.","Promíchejte s česnekovým olejem a parmazánem."]},
+  {id:73,n:"Minestrone s fazolemi a chlebem",t:45,k:"italská",p:"luštěniny",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["bílé fazole",400,"g"],["mrkev",2,"ks"],["řapíkatý celer",2,"ks"],["krájená rajčata",400,"g"],["drobné těstoviny",150,"g"],["chléb",300,"g"]],
+   st:["Zeleninu orestujte a podlijte vývarem.","Přidejte rajčata, fazole a těstoviny, vařte doměkka."]},
+  {id:74,n:"Domácí pizza margherita",t:70,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["hladká mouka",500,"g"],["droždí",1,"balení"],["rajčatový protlak",150,"g"],["mozzarella",250,"g"],["bazalka",1,"svazek"]],
+   st:["Z těsta nechte vykynout placky.","Potřete protlakem, poklaďte mozzarellou a pečte na maximum trouby."]},
+  {id:75,n:"Španělské kuře s olivami, rajčaty a rýží",t:50,k:"španělská",p:"kuře",wg:0,fr:0,veg:1,obs:[],
+   ing:[["kuřecí stehna",700,"g"],["olivy",100,"g"],["krájená rajčata",400,"g"],["rýže",320,"g"],["uzená paprika",10,"g"]],
+   st:["Kuře opečte s uzenou paprikou.","Duste v rajčatech s olivami, podávejte s rýží."]},
+  {id:76,n:"Zeleninová paella s bílými fazolemi",t:45,k:"španělská",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["rýže",320,"g"],["bílé fazole",400,"g"],["paprika",2,"ks"],["hrášek",200,"g"],["uzená paprika",10,"g"]],
+   st:["Zeleninu orestujte, přidejte rýži a koření.","Podlijte vývarem a vařte bez míchání, nakonec fazole a hrášek."]},
+  {id:77,n:"Burrito bowl s kuřecím a fazolemi",t:30,k:"mexická",p:"kuře",wg:0,fr:0,veg:1,obs:[],
+   ing:[["kuřecí prsa",450,"g"],["rýže",300,"g"],["černé fazole",400,"g"],["kukuřice",150,"g"],["avokádo",2,"ks"],["limetka",1,"ks"]],
+   st:["Kuře orestujte s kořením.","Servírujte v misce s rýží, fazolemi, kukuřicí a avokádem."]},
+  {id:78,n:"Enchiladas s krůtím masem",t:55,k:"mexická",p:"krůta",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["krůtí prsa",500,"g"],["tortilly",8,"ks"],["rajčatová omáčka",400,"g"],["sýr na strouhání",200,"g"],["paprika",2,"ks"]],
+   st:["Tortilly naplňte orestovaným masem a zeleninou.","Přelijte omáčkou, posypte sýrem a zapečte 20 minut."]},
+  {id:79,n:"Hovězí fajitas",t:30,k:"mexická",p:"hovězí",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["hovězí zadní",500,"g"],["tortilly",8,"ks"],["paprika",3,"ks"],["cibule",2,"ks"],["limetka",1,"ks"]],
+   st:["Nudličky masa zprudka orestujte s paprikami a cibulí.","Podávejte v tortillách s limetkou."]},
 ];
 
 // ---------- state ----------
@@ -366,9 +511,10 @@ const EXCL = ["vepřové","hovězí","ryby","lepek","laktóza","vejce","ořechy"
 const SLOTS = ["Všední den 1","Všední den 2","Všední den 3","Víkend 1","Víkend 2"];
 const KEY = "planovac-vecere-v1";
 let S = { adults: 2, kids: "", excl: [], dislikes: [], time: "stredni",
-          standing: [], favs: [], plan: null, locked: [false,false,false,false,false] };
+          standing: [], favs: [], plan: null, locked: [false,false,false,false,false], userRecipes: [] };
 try { const saved = JSON.parse(localStorage.getItem(KEY)); if (saved) S = Object.assign(S, saved); } catch {}
 const save = () => localStorage.setItem(KEY, JSON.stringify(S));
+const RALL = () => (S.userRecipes && S.userRecipes.length) ? R.concat(S.userRecipes) : R;
 const $ = (id) => document.getElementById(id);
 
 // ---------- household factor ----------
@@ -423,7 +569,7 @@ function fxScore(r, fx){
 // ---------- rubric ----------
 const RED = new Set(["hovězí","vepřové"]);
 function rubric(plan){
-  const rs = plan.map(id=>R.find(r=>r.id===id));
+  const rs = plan.map(id=>RALL().find(r=>r.id===id));
   const fish = rs.filter(r=>r.p==="ryba");
   const prot = {}; rs.forEach(r=>prot[r.p]=(prot[r.p]||0)+1);
   return [
@@ -464,7 +610,7 @@ function hardFilter(r, fx){
 }
 // Nutrition rubric enters the score only loosely — it steers, it doesn't rule.
 function slotScore(r, picked, fx){
-  const rs = picked.map(id=>R.find(x=>x.id===id));
+  const rs = picked.map(id=>RALL().find(x=>x.id===id));
   let s = Math.random()*1.5;
   const fish = rs.filter(x=>x.p==="ryba").length;
   if (r.p==="ryba"){ s += fish===0 ? 1.5 : (fish===1 ? 0.2 : -1.5); if (r.tuc) s += 0.4; }
@@ -475,6 +621,7 @@ function slotScore(r, picked, fx){
   if (rs.filter(x=>x.p===r.p).length>=2) s -= 3;
   if (r.fr) s -= rs.some(x=>x.fr) ? 2 : 0.3;
   if (S.favs.includes(r.id)) s += 2;
+  if (r.user) s += 2.2;
   if (S.time==="rychle") s -= Math.max(0, r.t-30)/15;
   if (S.time==="stredni") s -= Math.max(0, r.t-50)/20;
   s += fxScore(r, fx) || 0;
@@ -483,7 +630,7 @@ function slotScore(r, picked, fx){
 // avoid = recipe ids from the previous generation: regenerating must produce
 // a genuinely new week. Relax avoid, then the group, before giving up.
 function pickOne(picked, fx, group, avoid){
-  const pool = (useAvoid, useGroup) => R.filter(r=>
+  const pool = (useAvoid, useGroup) => RALL().filter(r=>
     !picked.includes(r.id) && hardFilter(r, fx) &&
     (!useAvoid || !avoid || !avoid.has(r.id)) &&
     (!useGroup || !group || GROUPS[r.k]===group));
@@ -493,7 +640,7 @@ function pickOne(picked, fx, group, avoid){
   if (!cands.length) cands = pool(false, false);
   if (!cands.length) return null;
   const top = cands.map(r=>({ r, s: slotScore(r, picked, fx) }))
-    .sort((a,b)=>b.s-a.s).slice(0, 4);
+    .sort((a,b)=>b.s-a.s).slice(0, 6);
   const w = top.map((c,i)=>Math.exp(-i*0.55));
   let x = Math.random()*w.reduce((a,b)=>a+b,0);
   for (let i=0;i<top.length;i++){ x -= w[i]; if (x<=0) return top[i].r.id; }
@@ -540,7 +687,7 @@ function shopping(){
   const f = factor()/4;
   const agg = new Map();
   for (const id of S.plan){
-    const r = R.find(x=>x.id===id);
+    const r = RALL().find(x=>x.id===id);
     for (const [n,q,u] of r.ing){
       const k = n+"|"+u;
       agg.set(k, (agg.get(k)||0) + q*f);
@@ -562,6 +709,9 @@ function render(){
   $("dislikes").innerHTML = S.dislikes.map((d,i)=>
     `<span class="tag">${d}<button data-di="${i}" aria-label="Smazat ${d}">×</button></span>`).join("");
   document.querySelectorAll("#timePref button").forEach(b=>b.classList.toggle("on", b.dataset.v===S.time));
+  $("userRecCount").textContent = (S.userRecipes||[]).length
+    ? `Máte ${S.userRecipes.length} vlastních receptů — generují se i nabízejí jako ostatní.`
+    : "Zatím žádné. Vlastní recepty se zapojí do generování podle své kuchyně.";
   $("standingList").innerHTML = S.standing.map((n,i)=>
     `<li><span>${n}</span><button class="ghost small" data-si="${i}" aria-label="Smazat poznámku">×</button></li>`).join("")
     || `<li><span class="hint" style="margin:0">Zatím žádné.</span></li>`;
@@ -572,7 +722,7 @@ function render(){
   $("rubric").innerHTML = rub.map(g=>
     `<span class="rub ${g.met?"met":""}" title="${g.d||""}">${g.n}</span>`).join("");
   $("plan").innerHTML = S.plan.map((id,i)=>{
-    const r = R.find(x=>x.id===id);
+    const r = RALL().find(x=>x.id===id);
     const fav = S.favs.includes(r.id);
     return `<article class="meal ${S.locked[i]?"locked":""}" id="meal${i}">
       <div class="meal-head">
@@ -612,15 +762,16 @@ let pickSlot = 0;
 function renderPicker(){
   const q = $("pickSearch").value.toLowerCase();
   const fx = interpret(S.standing);
-  $("pickList").innerHTML = R
+  $("pickList").innerHTML = RALL()
     .filter(r=>!q || recipeText(r).includes(q))
     .map(r=>{
       const ok = hardFilter(r, fx);
       const fav = S.favs.includes(r.id);
       return `<div class="pick" style="${ok?"":"opacity:.45"}">
-        <span class="n" data-choose="${r.id}">${r.n}</span>
+        <span class="n" data-choose="${r.id}">${r.n}${r.user?' <span class="badge">vlastní</span>':""}</span>
         <span class="m">${r.t} min · ${r.k}</span>
         <button class="ghost small" data-fav="${r.id}" title="Oblíbené">${fav?"★":"☆"}</button>
+        ${r.user?`<button class="ghost small" data-delrec="${r.id}" title="Smazat vlastní recept">🗑</button>`:""}
       </div>`;
     }).join("") || `<p class="hint">Nic nenalezeno.</p>`;
 }
@@ -645,6 +796,44 @@ document.addEventListener("click", (ev)=>{
     save(); render();
     if ($("picker").open) renderPicker();
   }
+  else if (d.delrec !== undefined){
+    const id = +d.delrec;
+    if (!confirm("Smazat tento vlastní recept?")) return;
+    S.userRecipes = (S.userRecipes||[]).filter(r=>r.id!==id);
+    if (S.plan){
+      S.plan.forEach((pid,i)=>{
+        if (pid===id) S.plan[i] = pickOne(S.plan.filter((x,j)=>j!==i && x!==id), interpret(S.standing), drawGroup(), null);
+      });
+    }
+    save(); render();
+    if ($("picker").open) renderPicker();
+  }
+  else if (d.robs !== undefined){ b.classList.toggle("on"); }
+});
+$("addRecipeBtn").addEventListener("click", ()=>{
+  $("rObs").innerHTML = EXCL.map(e=>`<button class="chip" data-robs="${e}">${e}</button>`).join("");
+  $("rName").value = ""; $("rIng").value = ""; $("rSteps").value = ""; $("rErr").textContent = "";
+  $("recipeDlg").showModal();
+});
+$("rCancel").addEventListener("click", ()=>$("recipeDlg").close());
+$("rSave").addEventListener("click", ()=>{
+  const name = $("rName").value.trim();
+  const ingLines = $("rIng").value.split("\n").map(l=>l.trim()).filter(Boolean);
+  if (!name || !ingLines.length){ $("rErr").textContent = "Vyplňte název a alespoň jednu surovinu."; return; }
+  const ing = ingLines.map(l=>{
+    const m = l.match(/^([\d.,]+)\s*(\S+)\s+(.+)$/);
+    return m ? [m[3].trim(), parseFloat(m[1].replace(",", ".")), m[2]] : [l, 1, "ks"];
+  });
+  const st = $("rSteps").value.split("\n").map(l=>l.trim()).filter(Boolean);
+  const obs = [...$("rObs").querySelectorAll(".chip.on")].map(c=>c.dataset.robs);
+  S.userRecipes = S.userRecipes || [];
+  S.userRecipes.push({
+    id: Date.now(), n: name, t: Math.max(5, +$("rTime").value||40),
+    k: $("rCuisine").value, p: $("rProtein").value,
+    wg: $("rWg").checked?1:0, fr: $("rFr").checked?1:0, veg: $("rVeg").checked?1:0,
+    obs, ing, st: st.length ? st : ["Připravte podle vlastního postupu."], user: true,
+  });
+  save(); render(); $("recipeDlg").close();
 });
 $("generate").addEventListener("click", generate);
 $("adults").addEventListener("input", ()=>{ S.adults = Math.max(1, +$("adults").value||1); save(); render(); });
@@ -829,7 +1018,7 @@ $("cartBtn").addEventListener("click", async ()=>{
 $("copyBtn").addEventListener("click", async ()=>{
   const items = checkedItems();
   if (!items.length){ setMsg("Nic není zaškrtnuto.", true); return; }
-  const meals = S.plan.map(id=>R.find(r=>r.id===id).n);
+  const meals = S.plan.map(id=>RALL().find(r=>r.id===id).n);
   const text = "Naplň mi prosím košík na rohlik.cz podle tohoto seznamu (kupuj celá balení):\n"
     + items.map(l=>"- "+l.txt).join("\n")
     + "\n\nJídelníček týdne: " + meals.join("; ");
