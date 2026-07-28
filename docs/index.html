@@ -443,22 +443,19 @@ function rubric(plan){
 }
 
 // ---------- generator ----------
-// Cuisine preference tiers: primary Czech; secondary Italian/Indian/Slovak;
-// sometimes German/French/Spanish/Mexican; only occasionally Asian.
-// Unlisted cuisines (středomořská, americká, blízkovýchodní) sit between
-// "sometimes" and "occasionally". Asian is normally out of contention;
-// a per-generation "treat roll" (asiaBoost) lets at most one Asian meal
-// compete like a secondary cuisine in roughly 1 week out of 5, which in
-// simulation yields ~1 Asian dinner a month. Weights tuned by simulating
-// 120 weeks: ~55 % Czech slots, 84 % of weeks pass the ≥3-cuisines goal.
-const CUISINE_W = {
-  "česká": 1.2,
-  "italská": 0.55, "indická": 0.55, "slovenská": 0.7,
-  "německá": -0.25, "francouzská": -0.25, "španělská": -0.25, "mexická": -0.25,
-  "asijská": -2.5,
-};
-let asiaBoost = 0;
-function rollTreat(){ asiaBoost = Math.random() < 0.2 ? 3.4 : 0; }
+// Cuisine mix is driven by explicit target shares: each week's five slots
+// draw their cuisine group from TARGETS, so the long-run distribution
+// matches the percentages exactly. Cuisines outside the groups (asijská,
+// německá, francouzská, …) are never generated but stay available through
+// manual pick; a group with no eligible recipe falls back to any cuisine.
+const GROUPS = { "česká":"czsk", "slovenská":"czsk", "indická":"ind",
+                 "italská":"ita", "španělská":"esmx", "mexická":"esmx" };
+const TARGETS = [["czsk",0.6],["ind",0.2],["ita",0.1],["esmx",0.1]];
+function drawGroup(){
+  let x = Math.random();
+  for (const [g,p] of TARGETS){ x -= p; if (x <= 0) return g; }
+  return TARGETS[0][0];
+}
 function hardFilter(r, fx){
   if (r.obs.some(o=>S.excl.includes(o))) return false;
   if (S.excl.includes("vepřové") && r.p==="vepřové") return false;
@@ -469,43 +466,60 @@ function hardFilter(r, fx){
   if (fxScore(r, fx) === null) return false;
   return true;
 }
+// Nutrition rubric enters the score only loosely — it steers, it doesn't rule.
 function slotScore(r, picked, fx){
   const rs = picked.map(id=>R.find(x=>x.id===id));
-  let s = Math.random()*1.2;
+  let s = Math.random()*1.5;
   const fish = rs.filter(x=>x.p==="ryba").length;
-  if (r.p==="ryba"){ s += fish===0 ? 3 : (fish===1 ? 0.5 : -3); if (r.tuc) s += 0.8; }
-  if (r.p==="luštěniny" && !rs.some(x=>x.p==="luštěniny")) s += 2.5;
-  if (RED.has(r.p) && rs.filter(x=>RED.has(x.p)).length>=2) s -= 4;
-  if (!r.veg) s -= 2;
-  if (r.wg && rs.filter(x=>x.wg).length<2) s += 1.5;
-  if (rs.filter(x=>x.p===r.p).length>=2) s -= 4;
-  if (!rs.some(x=>x.k===r.k)) s += 1;
-  s += (CUISINE_W[r.k] ?? -0.8) + (r.k==="asijská" ? asiaBoost : 0);
-  if (r.k==="asijská" && rs.some(x=>x.k==="asijská")) s -= 4;
-  if (r.fr) s -= rs.some(x=>x.fr) ? 4 : 0.5;
+  if (r.p==="ryba"){ s += fish===0 ? 1.5 : (fish===1 ? 0.2 : -1.5); if (r.tuc) s += 0.4; }
+  if (r.p==="luštěniny" && !rs.some(x=>x.p==="luštěniny")) s += 1.2;
+  if (RED.has(r.p) && rs.filter(x=>RED.has(x.p)).length>=2) s -= 1.5;
+  if (!r.veg) s -= 0.8;
+  if (r.wg && rs.filter(x=>x.wg).length<2) s += 0.6;
+  if (rs.filter(x=>x.p===r.p).length>=2) s -= 3;
+  if (r.fr) s -= rs.some(x=>x.fr) ? 2 : 0.3;
   if (S.favs.includes(r.id)) s += 2;
   if (S.time==="rychle") s -= Math.max(0, r.t-30)/15;
   if (S.time==="stredni") s -= Math.max(0, r.t-50)/20;
   s += fxScore(r, fx) || 0;
   return s;
 }
-function pickOne(picked, fx){
-  const cands = R.filter(r=>!picked.includes(r.id) && hardFilter(r, fx))
-    .map(r=>({ r, s: slotScore(r, picked, fx) }))
-    .sort((a,b)=>b.s-a.s).slice(0, 6);
+// avoid = recipe ids from the previous generation: regenerating must produce
+// a genuinely new week. Relax avoid, then the group, before giving up.
+function pickOne(picked, fx, group, avoid){
+  const pool = (useAvoid, useGroup) => R.filter(r=>
+    !picked.includes(r.id) && hardFilter(r, fx) &&
+    (!useAvoid || !avoid || !avoid.has(r.id)) &&
+    (!useGroup || !group || GROUPS[r.k]===group));
+  let cands = pool(true, true);
+  if (!cands.length) cands = pool(false, true);
+  if (!cands.length) cands = pool(true, false);
+  if (!cands.length) cands = pool(false, false);
   if (!cands.length) return null;
-  const w = cands.map((c,i)=>Math.exp(-i*0.55));
+  const top = cands.map(r=>({ r, s: slotScore(r, picked, fx) }))
+    .sort((a,b)=>b.s-a.s).slice(0, 4);
+  const w = top.map((c,i)=>Math.exp(-i*0.55));
   let x = Math.random()*w.reduce((a,b)=>a+b,0);
-  for (let i=0;i<cands.length;i++){ x -= w[i]; if (x<=0) return cands[i].r.id; }
-  return cands[0].r.id;
+  for (let i=0;i<top.length;i++){ x -= w[i]; if (x<=0) return top[i].r.id; }
+  return top[0].r.id;
 }
 function generate(){
-  rollTreat();
   const notes = [...S.standing, $("oneoffInput").value.trim()].filter(Boolean);
   const fx = interpret(notes);
   const plan = S.plan ? [...S.plan] : [null,null,null,null,null];
-  for (let i=0;i<5;i++) if (!S.locked[i] || plan[i]===null) plan[i] = null;
-  for (let i=0;i<5;i++) if (plan[i]===null) plan[i] = pickOne(plan.filter(Boolean), fx);
+  const avoid = new Set();
+  for (let i=0;i<5;i++){
+    if (!S.locked[i] || plan[i]===null){ if (plan[i]!==null) avoid.add(plan[i]); plan[i] = null; }
+  }
+  // draw the week's cuisine composition from the targets, minus locked slots
+  const comp = [];
+  for (let i=0;i<5;i++) if (plan[i]===null) comp.push(drawGroup());
+  for (let i=0;i<5;i++){
+    if (plan[i]===null){
+      const group = comp.length ? comp.splice(Math.floor(Math.random()*comp.length),1)[0] : drawGroup();
+      plan[i] = pickOne(plan.filter(Boolean), fx, group, avoid);
+    }
+  }
   if (plan.some(p=>p===null)){
     alert("Omezení jsou tak přísná, že se nepodařilo sestavit celý týden. Zkuste některá uvolnit.");
     return;
@@ -513,11 +527,10 @@ function generate(){
   S.plan = plan; save(); render();
 }
 function rerollSlot(i){
-  rollTreat();
   const notes = [...S.standing, $("oneoffInput").value.trim()].filter(Boolean);
   const fx = interpret(notes);
   const others = S.plan.filter((_,j)=>j!==i);
-  const next = pickOne(others, fx);
+  const next = pickOne(others, fx, drawGroup(), new Set([S.plan[i]]));
   if (next){ S.plan[i] = next; save(); render(); }
 }
 
