@@ -519,10 +519,10 @@ const EXCL = ["vepřové","hovězí","ryby","lepek","laktóza","vejce","ořechy"
 const SLOTS = ["Všední den 1","Všední den 2","Všední den 3","Víkend 1","Víkend 2"];
 const KEY = "planovac-vecere-v1";
 let S = { adults: 2, kids: "", excl: [], dislikes: [], time: "stredni",
-          standing: [], favs: [], plan: null, locked: [false,false,false,false,false], userRecipes: [] };
+          standing: [], favs: [], plan: null, locked: [false,false,false,false,false], userRecipes: [], extRecipes: [], seen: {} };
 try { const saved = JSON.parse(localStorage.getItem(KEY)); if (saved) S = Object.assign(S, saved); } catch {}
 const save = () => localStorage.setItem(KEY, JSON.stringify(S));
-const RALL = () => (S.userRecipes && S.userRecipes.length) ? R.concat(S.userRecipes) : R;
+const RALL = () => R.concat(S.userRecipes || []).concat(S.extRecipes || []);
 const $ = (id) => document.getElementById(id);
 
 // ---------- household factor ----------
@@ -637,15 +637,15 @@ function slotScore(r, picked, fx){
 }
 // avoid = recipe ids from the previous generation: regenerating must produce
 // a genuinely new week. Relax avoid, then the group, before giving up.
-function pickOne(picked, fx, group, avoid){
+function pickOne(picked, fx, group, avoid, strictAvoid){
   const pool = (useAvoid, useGroup) => RALL().filter(r=>
     !picked.includes(r.id) && hardFilter(r, fx) &&
     (!useAvoid || !avoid || !avoid.has(r.id)) &&
     (!useGroup || !group || GROUPS[r.k]===group));
   let cands = pool(true, true);
-  if (!cands.length) cands = pool(false, true);
   if (!cands.length) cands = pool(true, false);
-  if (!cands.length) cands = pool(false, false);
+  if (!cands.length && !strictAvoid) cands = pool(false, true);
+  if (!cands.length && !strictAvoid) cands = pool(false, false);
   if (!cands.length) return null;
   const top = cands.map(r=>({ r, s: slotScore(r, picked, fx) }))
     .sort((a,b)=>b.s-a.s).slice(0, 6);
@@ -675,14 +675,113 @@ function generate(){
     alert("Omezení jsou tak přísná, že se nepodařilo sestavit celý týden. Zkuste některá uvolnit.");
     return;
   }
-  S.plan = plan; save(); render();
+  S.plan = plan; S.seen = {}; save(); render();
 }
-function rerollSlot(i){
+const GROUP_LABEL = { czsk: "česká", ind: "indická", ita: "italská", esmx: "mexická" };
+const GROUP_QUERIES = {
+  czsk: ["tradiční česká večeře", "česká kuchyně večeře"],
+  ind:  ["indické kari", "indická večeře"],
+  ita:  ["italská večeře", "italské těstoviny"],
+  esmx: ["mexická večeře", "španělská večeře"],
+};
+const QUERY_SPICE = ["kuře", "hovězí maso", "luštěniny", "ryba", "zelenina", "brambory", "rýže", "těstoviny"];
+const DUR_MAP = { "Raz dva": 20, "Do půl hodiny": 30, "Do hodinky": 50, "Majstrštyk": 90 };
+function convertRohlikRecipe(cand, det, group){
+  if (!det || !det.ingredients || !det.ingredients.length) return null;
+  const ing = det.ingredients.map(x=>{
+    const t = (x.ingredient_name || "").trim();
+    const m = t.match(/^([\d.,]+)\s*(g|kg|ml|l|ks|lžíce|lžička|svazek|stroužky|stroužek|balení|plátky)?\s+(.+)$/i);
+    if (m){
+      let q = parseFloat(m[1].replace(",", ".")) || 1;
+      let u = (m[2] || "ks").toLowerCase();
+      if (u === "kg"){ q *= 1000; u = "g"; }
+      if (u === "l"){ q *= 1000; u = "ml"; }
+      if (u === "stroužek") u = "stroužky";
+      return [m[3], q, u];
+    }
+    return [t, 1, "ks"];
+  });
+  const txt = ((det.name || cand.name) + " " + ing.map(i=>i[0]).join(" ")).toLowerCase();
+  const p = /losos|tresk|pstruh|makrel|tuňák|ryb/.test(txt) ? "ryba"
+    : /krůt/.test(txt) ? "krůta" : /kuře|kuřec/.test(txt) ? "kuře"
+    : /hověz/.test(txt) ? "hovězí" : /vepř|slanin|klobás|šunk|bůček/.test(txt) ? "vepřové"
+    : /čočk|fazol|cizrn|hrách|hrachov/.test(txt) ? "luštěniny"
+    : /tofu/.test(txt) ? "tofu" : /vejc/.test(txt) ? "vejce"
+    : /sýr|tvaroh|parmazán/.test(txt) ? "sýr" : "jiné";
+  const obs = [];
+  if (/mouk|těstovin|kuskus|bulgur|chléb|chleb|knedlík|strouhank|špecle|lasagne|pita|tortil|veka|nudl/.test(txt)) obs.push("lepek");
+  if (/smetan|mlék|sýr|másl|jogurt|tvaroh|parmazán/.test(txt)) obs.push("laktóza");
+  if (/vejc/.test(txt)) obs.push("vejce");
+  if (/losos|tresk|pstruh|makrel|tuňák|sardel|ryb/.test(txt)) obs.push("ryby");
+  if (/ořech|kešu|mandl|arašíd|lískov/.test(txt)) obs.push("ořechy");
+  if (/sój|tofu/.test(txt)) obs.push("sója");
+  if (/vepř|slanin|klobás|šunk|bůček/.test(txt)) obs.push("vepřové");
+  if (/hověz/.test(txt)) obs.push("hovězí");
+  return {
+    id: 100000 + (det.recipe_id || cand.id),
+    n: det.name || cand.name,
+    t: DUR_MAP[cand.duration] || 45,
+    k: GROUP_LABEL[group] || "česká",
+    p,
+    wg: /celozrnn|bulgur|oves/.test(txt) ? 1 : 0,
+    fr: /smažen/.test(txt) ? 1 : 0,
+    veg: /mrkev|paprik|rajč|cuket|brokolic|špenát|salát|zelí|květák|hrášek|celer|pórek|dýn|lilek/.test(txt) ? 1 : 0,
+    obs, ing,
+    st: (det.steps || []).sort((a,b)=>(a.order||0)-(b.order||0)).map(x=>x.text).filter(Boolean),
+    ext: true,
+  };
+}
+async function fetchRohlikRecipe(group, fx, seen){
+  const base = GROUP_QUERIES[group] || GROUP_QUERIES.czsk;
+  const q = base[Math.floor(Math.random()*base.length)] + " " + QUERY_SPICE[Math.floor(Math.random()*QUERY_SPICE.length)];
+  const sr = unwrap(await mcpCall("search_recipes_by_vector_similarity", { query: q, limit: 6 }, true));
+  const list = (sr && sr.data) || [];
+  const known = new Set(RALL().map(r=>r.id));
+  for (const cand of list){
+    const id = 100000 + cand.id;
+    if (known.has(id) || seen.has(id)) continue;
+    const det = unwrap(await mcpCall("get_recipe_detail", { recipe_id: cand.id }, true));
+    const rec = convertRohlikRecipe(cand, det, group);
+    if (!rec || !hardFilter(rec, fx)) continue;
+    S.extRecipes = (S.extRecipes || []).slice(-99);
+    S.extRecipes.push(rec);
+    save();
+    return rec;
+  }
+  return null;
+}
+let rerolling = false;
+async function rerollSlot(i){
+  if (rerolling) return;
   const notes = [...S.standing, $("oneoffInput").value.trim()].filter(Boolean);
   const fx = interpret(notes);
   const others = S.plan.filter((_,j)=>j!==i);
-  const next = pickOne(others, fx, drawGroup(), new Set([S.plan[i]]));
+  S.seen = S.seen || {};
+  const seen = new Set(S.seen[i] || []);
+  seen.add(S.plan[i]);
+  const group = drawGroup();
+  // after ~12 rejected suggestions the local pool is clearly not it —
+  // go straight to Rohlík's recipe DB for genuinely new ideas
+  let next = seen.size < 12 ? pickOne(others, fx, group, seen, true) : null;
+  let fetched = false;
+  if (!next && bridgeMode()){
+    rerolling = true;
+    setMsg("Vyzkoušeli jste všechny lokální recepty — hledám nový na Rohlíku…");
+    try {
+      const rec = await fetchRohlikRecipe(group, fx, seen);
+      if (rec){ next = rec.id; fetched = true; }
+    } catch(e){ setMsg(mcpErrMsg(e), true); }
+    rerolling = false;
+  }
+  if (!next){
+    S.seen[i] = [];
+    next = pickOne(others, fx, group, new Set([S.plan[i]]), false);
+    if (!fetched && !bridgeMode()) setMsg("Nabídka se opakuje — pro další recepty z Rohlíku připojte košík (konektor nebo rodinný kód).", true);
+  } else {
+    S.seen[i] = [...seen];
+  }
   if (next){ S.plan[i] = next; save(); render(); }
+  if (fetched) setMsg("Přidán nový recept z databáze Rohlíku.");
 }
 
 // ---------- shopping list ----------
@@ -740,6 +839,7 @@ function render(){
           <div class="meal-meta">
             <span>${r.t} min</span><span>${r.k}</span><span>${r.p}</span>
             ${fav?'<span class="fav">★ oblíbené</span>':""}
+            ${r.ext?'<span>z Rohlíku</span>':""}
           </div>
         </div>
         <div class="meal-actions">
@@ -776,10 +876,10 @@ function renderPicker(){
       const ok = hardFilter(r, fx);
       const fav = S.favs.includes(r.id);
       return `<div class="pick" style="${ok?"":"opacity:.45"}">
-        <span class="n" data-choose="${r.id}">${r.n}${r.user?' <span class="badge">vlastní</span>':""}</span>
+        <span class="n" data-choose="${r.id}">${r.n}${r.user?' <span class="badge">vlastní</span>':""}${r.ext?' <span class="badge">Rohlík</span>':""}</span>
         <span class="m">${r.t} min · ${r.k}</span>
         <button class="ghost small" data-fav="${r.id}" title="Oblíbené">${fav?"★":"☆"}</button>
-        ${r.user?`<button class="ghost small" data-delrec="${r.id}" title="Smazat vlastní recept">🗑</button>`:""}
+        ${(r.user||r.ext)?`<button class="ghost small" data-delrec="${r.id}" title="Smazat recept">🗑</button>`:""}
       </div>`;
     }).join("") || `<p class="hint">Nic nenalezeno.</p>`;
 }
@@ -806,8 +906,9 @@ document.addEventListener("click", (ev)=>{
   }
   else if (d.delrec !== undefined){
     const id = +d.delrec;
-    if (!confirm("Smazat tento vlastní recept?")) return;
+    if (!confirm("Smazat tento recept?")) return;
     S.userRecipes = (S.userRecipes||[]).filter(r=>r.id!==id);
+    S.extRecipes = (S.extRecipes||[]).filter(r=>r.id!==id);
     if (S.plan){
       S.plan.forEach((pid,i)=>{
         if (pid===id) S.plan[i] = pickOne(S.plan.filter((x,j)=>j!==i && x!==id), interpret(S.standing), drawGroup(), null);

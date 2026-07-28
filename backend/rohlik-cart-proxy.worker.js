@@ -36,6 +36,8 @@ const TOOL_ALLOW = new Set([
   "get_cart",
   "update_cart_item",
   "remove_cart_item",
+  "search_recipes_by_vector_similarity",
+  "get_recipe_detail",
 ]);
 const METHOD_ALLOW = new Set([
   "initialize", "notifications/initialized", "tools/list", "tools/call", "ping",
