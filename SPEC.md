@@ -57,6 +57,7 @@ Goals the generator aims for across the 5 weekly dinners — not hard constraint
 ## 6. Generation & refresh
 
 - Generate a 5-meal week from the recipe pool, respecting constraints (hard) and rubric + favorites + time (soft).
+- **Cuisine preference tiers (soft, decided 2026-07-28):** primary **česká**; secondary **italská, indická, slovenská**; sometimes **německá, francouzská, španělská, mexická**; only occasionally **asijská** (thajská, čínská, vietnamská — target ≈1 dinner/month, at most one per week). Tiers are generation weights, not filters — manual pick can always override. Keep in balance with the ≥3-cuisines rubric goal.
 - **Refresh** = user locks any meals they like and rerolls only the rest.
 - User can **manually pick** one or more specific meals (into the plan and/or into the rohlík order).
 - **Comments — two tiers** (resolves the open question):
