@@ -923,6 +923,55 @@ function bridgeMode(){
 function updateCartButtons(){
   $("loginBtn").hidden = !(!(window.claude && window.claude.mcp) && TOKEN_PROXY && !localStorage.getItem(AKEY));
 }
+function checkedItems(){
+  return shopping().filter((_,i)=>{
+    const cb = document.querySelector(`input[data-shop="${i}"]`);
+    return !cb || cb.checked;
+  });
+}
+function stripD(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
+function parseAmount(t){
+  if (!t) return null;
+  const m = String(t).replace(",",".").match(/([\d.]+)\s*(kg|g|l|ml|ks)/i);
+  if (!m) return null;
+  let q = parseFloat(m[1]), u = m[2].toLowerCase();
+  if (u==="kg"){ q*=1000; u="g"; }
+  if (u==="l"){ q*=1000; u="ml"; }
+  return { q, u };
+}
+function unwrap(res){
+  const p = res && res.payload;
+  return (p && typeof p==="object" && "result" in p) ? p.result : p;
+}
+function setMsg(html, err){
+  const el = $("cartMsg");
+  el.hidden = !html;
+  el.className = "status" + (err ? " err" : "");
+  el.innerHTML = html || "";
+}
+function mcpErrMsg(e){
+  switch(e && e.code){
+    case "server_not_connected":
+    case "selection_required":
+      return "Konektor „Rohlik“ není připojený. V claude.ai → Nastavení → Konektory přidejte vlastní konektor: název přesně Rohlik, URL https://mcp.rohlik.cz/mcp, přihlaste se — a obnovte tuto stránku.";
+    case "needs_reauth":
+      return "Přihlášení k Rohlíku vypršelo — obnovte konektor Rohlik v claude.ai → Nastavení → Konektory.";
+    case "server_unavailable":
+      return "Rohlík teď neodpovídá — zkuste to za chvíli znovu.";
+    case "tool_error":
+      return "Rohlík vrátil chybu: " + (e.message || "neznámá chyba");
+    case "not_granted": case "capability_disabled": case "capability_removed":
+      return "Stránka nemá přístup ke konektorům — otevřete ji přes claude.ai a povolte jí přístup ke konektoru Rohlik.";
+    case "blocked_by_policy": case "approval_required":
+      return "Volání konektoru blokují zásady vaší organizace.";
+    case "cancelled":
+      return "Rohlík neodpověděl do 30 sekund — zkuste to znovu.";
+    case "needs_key":
+      return "Neplatný rodinný kód — klikněte na „Zadat rodinný kód“ a zadejte ho znovu.";
+    default:
+      return "Spojení s Rohlíkem selhalo" + (e && e.message ? ": " + e.message : ".");
+  }
+}
 async function mcpCall(tool, input, isRead){
   if (bridgeMode() === "direct") return directMcp(tool, input, isRead);
   // reads get a 30 s deadline so a hung call surfaces as an error instead of
