@@ -1,0 +1,7 @@
+name = "rohlik-token-proxy"
+main = "rohlik-cart-proxy.worker.js"
+compatibility_date = "2026-01-01"
+
+kv_namespaces = [
+  { binding = "KV", id = "5a50a4823b9744f68006d76ef7172b5c" }
+]

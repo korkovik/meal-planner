@@ -3,3 +3,5 @@ poc/.tokens.json
 node_modules/
 .DS_Store
 .wrangler/
+poc/.app-key.txt
+poc/.device-client.json

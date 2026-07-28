@@ -204,7 +204,7 @@
         <ul id="shopList"></ul>
         <div class="row" style="margin-top:10px">
           <button class="primary" id="cartBtn">Poslat do košíku na Rohlíku</button>
-          <button id="loginBtn" hidden>Přihlásit Rohlík</button>
+          <button id="loginBtn" hidden>Zadat rodinný kód</button>
           <button id="copyBtn">Zkopírovat pro Clauda</button>
         </div>
         <p id="cartMsg" class="status" hidden></p>
@@ -861,91 +861,29 @@ let matchState = [];
 
 // ---------- direct Rohlík connection (GitHub Pages mode) ----------
 // On claude.ai the page uses the viewer's "Rohlik" connector. Elsewhere it
-// talks to mcp.rohlik.cz directly (its CORS is open); only the OAuth token
-// endpoints lack CORS, so registration + token exchange go through
-// TOKEN_PROXY (backend/rohlik-token-proxy.worker.js). Empty = disabled.
+// sends MCP calls to the family cart proxy (backend/rohlik-cart-proxy.worker.js),
+// which holds the family Rohlík session server-side and forwards only a safe
+// allowlist of search/cart tools. Access needs the family code (X-App-Key).
+// Empty TOKEN_PROXY disables this mode.
 const TOKEN_PROXY = "https://rohlik-token-proxy.korkovik.workers.dev";
-const DIRECT_MCP = "https://mcp.rohlik.cz/mcp";
-const DIRECT_AUTH = "https://identity.rohlik.cz/oauth2/authorize";
-const CKEY = "rohlik-client", TKEY = "rohlik-tokens";
-const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-const redirectUri = () => location.origin + location.pathname;
+const AKEY = "rohlik-app-key";
 
-async function directLogin(){
-  let client = JSON.parse(localStorage.getItem(CKEY) || "null");
-  if (!client){
-    const r = await fetch(TOKEN_PROXY + "/register", { method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ client_name:"meal-planner-pages", redirect_uris:[redirectUri()],
-        grant_types:["authorization_code","refresh_token"], response_types:["code"],
-        token_endpoint_auth_method:"none", scope:"openid email roles" })});
-    if (!r.ok) throw new Error("Registrace OAuth klienta selhala (" + r.status + ")");
-    client = await r.json();
-    localStorage.setItem(CKEY, JSON.stringify(client));
-  }
-  const v = b64u(crypto.getRandomValues(new Uint8Array(32)));
-  const state = b64u(crypto.getRandomValues(new Uint8Array(16)));
-  const chal = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
-  sessionStorage.setItem("pkce", JSON.stringify({ v, state }));
-  const u = new URL(DIRECT_AUTH);
-  u.search = new URLSearchParams({ client_id: client.client_id, response_type:"code",
-    redirect_uri: redirectUri(), scope:"openid email roles", state,
-    code_challenge: chal, code_challenge_method:"S256", resource: DIRECT_MCP }).toString();
-  location.href = u;
-}
-async function tokenPost(params){
-  const r = await fetch(TOKEN_PROXY + "/token", { method:"POST",
-    headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body: new URLSearchParams(params) });
-  if (!r.ok) throw new Error("Výměna tokenu selhala (" + r.status + ")");
-  const t = await r.json(); t.obtained_at = Date.now();
-  const prev = JSON.parse(localStorage.getItem(TKEY) || "null");
-  if (!t.refresh_token && prev) t.refresh_token = prev.refresh_token;
-  localStorage.setItem(TKEY, JSON.stringify(t));
-  return t;
-}
-async function directToken(){
-  let t = JSON.parse(localStorage.getItem(TKEY) || "null");
-  if (!t) return null;
-  if ((Date.now() - t.obtained_at)/1000 < (t.expires_in || 0) - 60) return t.access_token;
-  const client = JSON.parse(localStorage.getItem(CKEY) || "null");
-  if (!t.refresh_token || !client){ localStorage.removeItem(TKEY); return null; }
-  try {
-    t = await tokenPost({ grant_type:"refresh_token", refresh_token:t.refresh_token,
-      client_id:client.client_id, resource:DIRECT_MCP });
-    return t.access_token;
-  } catch { localStorage.removeItem(TKEY); return null; }
-}
-async function captureOAuthRedirect(){
-  const q = new URLSearchParams(location.search);
-  if (!q.get("code")) return;
-  const pk = JSON.parse(sessionStorage.getItem("pkce") || "null");
-  history.replaceState(null, "", location.pathname);
-  if (!pk || q.get("state") !== pk.state){ setMsg("Přihlášení selhalo (neplatný stav) — zkuste to znovu.", true); return; }
-  sessionStorage.removeItem("pkce");
-  const client = JSON.parse(localStorage.getItem(CKEY) || "null");
-  try {
-    await tokenPost({ grant_type:"authorization_code", code:q.get("code"),
-      redirect_uri: redirectUri(), client_id: client.client_id, code_verifier: pk.v, resource: DIRECT_MCP });
-    $("shop").open = true;
-    setMsg("Rohlík připojen — můžete odesílat do košíku.");
-  } catch(e){ setMsg("Přihlášení k Rohlíku selhalo: " + e.message, true); }
-  updateCartButtons();
-}
 let directSession = null, directInit = false;
 async function directMcp(tool, input, isRead){
-  const token = await directToken();
-  if (!token) throw { code: "needs_login" };
-  const call = async (body) => {
+  const call = async (body, tolerate) => {
     const headers = { "Content-Type":"application/json", "Accept":"application/json, text/event-stream",
-      "Authorization":"Bearer " + token, "MCP-Protocol-Version":"2025-06-18" };
+      "MCP-Protocol-Version":"2025-06-18", "X-App-Key": localStorage.getItem(AKEY) || "" };
     if (directSession) headers["Mcp-Session-Id"] = directSession;
     const opts = { method:"POST", headers, body: JSON.stringify(body) };
     if (isRead && typeof AbortSignal!=="undefined" && AbortSignal.timeout) opts.signal = AbortSignal.timeout(30000);
-    const r = await fetch(DIRECT_MCP, opts);
+    let r;
+    try { r = await fetch(TOKEN_PROXY + "/mcp", opts); }
+    catch(e){ if (tolerate) return null; throw (e && e.name==="TimeoutError") ? { code:"cancelled" } : { code:"server_unavailable", message:String(e) }; }
     const sid = r.headers.get("mcp-session-id"); if (sid) directSession = sid;
-    if (r.status === 401){ localStorage.removeItem(TKEY); throw { code: "needs_login" }; }
+    if (r.status === 401){ localStorage.removeItem(AKEY); updateCartButtons(); throw { code:"needs_key" }; }
+    if (r.status === 403) throw { code:"tool_error", message:"nástroj není na proxy povolen" };
     const text = await r.text();
-    if (!r.ok) throw { code: "upstream_error", message: "HTTP " + r.status };
+    if (!r.ok){ if (tolerate) return null; throw { code:"upstream_error", message:"HTTP " + r.status + " " + text.slice(0,120) }; }
     if (!text) return null;
     if ((r.headers.get("content-type") || "").includes("text/event-stream")){
       let out = null;
@@ -954,13 +892,13 @@ async function directMcp(tool, input, isRead){
       }
       return out;
     }
-    return JSON.parse(text);
+    try { return JSON.parse(text); } catch { return null; }
   };
   if (!directInit){
     const init = await call({ jsonrpc:"2.0", id:1, method:"initialize",
-      params:{ protocolVersion:"2025-06-18", capabilities:{}, clientInfo:{ name:"meal-planner-pages", version:"0.2" } } });
+      params:{ protocolVersion:"2025-06-18", capabilities:{}, clientInfo:{ name:"meal-planner-pages", version:"0.3" } } });
     if (init && init.error) throw { code:"upstream_error", message: JSON.stringify(init.error) };
-    await call({ jsonrpc:"2.0", method:"notifications/initialized" });
+    await call({ jsonrpc:"2.0", method:"notifications/initialized" }, true);
     directInit = true;
   }
   const res = await call({ jsonrpc:"2.0", id: (Date.now()%1e9), method:"tools/call",
@@ -979,61 +917,11 @@ async function directMcp(tool, input, isRead){
 }
 function bridgeMode(){
   if (window.claude && window.claude.mcp) return "connector";
-  if (TOKEN_PROXY && localStorage.getItem(TKEY)) return "direct";
+  if (TOKEN_PROXY && localStorage.getItem(AKEY)) return "direct";
   return null;
 }
 function updateCartButtons(){
-  $("loginBtn").hidden = !(!(window.claude && window.claude.mcp) && TOKEN_PROXY && !localStorage.getItem(TKEY));
-}
-
-function checkedItems(){
-  return shopping().filter((_,i)=>{
-    const cb = document.querySelector(`input[data-shop="${i}"]`);
-    return !cb || cb.checked;
-  });
-}
-function stripD(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
-function parseAmount(t){
-  if (!t) return null;
-  const m = String(t).replace(",",".").match(/([\d.]+)\s*(kg|g|l|ml|ks)/i);
-  if (!m) return null;
-  let q = parseFloat(m[1]), u = m[2].toLowerCase();
-  if (u==="kg"){ q*=1000; u="g"; }
-  if (u==="l"){ q*=1000; u="ml"; }
-  return { q, u };
-}
-function unwrap(res){
-  const p = res && res.payload;
-  return (p && typeof p==="object" && "result" in p) ? p.result : p;
-}
-function setMsg(html, err){
-  const el = $("cartMsg");
-  el.hidden = !html;
-  el.className = "status" + (err ? " err" : "");
-  el.innerHTML = html || "";
-}
-function mcpErrMsg(e){
-  switch(e && e.code){
-    case "server_not_connected":
-    case "selection_required":
-      return "Konektor „Rohlik“ není připojený. V claude.ai → Nastavení → Konektory přidejte vlastní konektor: název přesně Rohlik, URL https://mcp.rohlik.cz/mcp, přihlaste se — a obnovte tuto stránku.";
-    case "needs_reauth":
-      return "Přihlášení k Rohlíku vypršelo — obnovte konektor Rohlik v claude.ai → Nastavení → Konektory.";
-    case "server_unavailable":
-      return "Rohlík teď neodpovídá — zkuste to za chvíli znovu.";
-    case "tool_error":
-      return "Rohlík vrátil chybu: " + (e.message || "neznámá chyba");
-    case "not_granted": case "capability_disabled": case "capability_removed":
-      return "Stránka nemá přístup ke konektorům — otevřete ji přes claude.ai a povolte jí přístup ke konektoru Rohlik.";
-    case "blocked_by_policy": case "approval_required":
-      return "Volání konektoru blokují zásady vaší organizace.";
-    case "cancelled":
-      return "Rohlík neodpověděl do 30 sekund — zkuste to znovu.";
-    case "needs_login":
-      return "Přihlášení k Rohlíku vypršelo — klikněte na „Přihlásit Rohlík“.";
-    default:
-      return "Spojení s Rohlíkem selhalo" + (e && e.message ? ": " + e.message : ".");
-  }
+  $("loginBtn").hidden = !(!(window.claude && window.claude.mcp) && TOKEN_PROXY && !localStorage.getItem(AKEY));
 }
 async function mcpCall(tool, input, isRead){
   if (bridgeMode() === "direct") return directMcp(tool, input, isRead);
@@ -1126,7 +1014,7 @@ $("cartBtn").addEventListener("click", async ()=>{
   if (!items.length){ setMsg("Nic není zaškrtnuto.", true); return; }
   if (!bridgeMode()){
     setMsg(TOKEN_PROXY
-      ? "Nejdřív připojte Rohlík tlačítkem „Přihlásit Rohlík“."
+      ? "Nejdřív zadejte rodinný kód tlačítkem „Zadat rodinný kód“."
       : "Přímé odeslání funguje jen v artifactu na claude.ai s připojeným konektorem „Rohlik“ (URL https://mcp.rohlik.cz/mcp). Na této stránce použijte „Zkopírovat pro Clauda“.", true);
     return;
   }
@@ -1171,13 +1059,17 @@ $("copyBtn").addEventListener("click", async ()=>{
 });
 
 $("loginBtn").addEventListener("click", ()=>{
-  directLogin().catch(e=>setMsg("Připojení k Rohlíku selhalo: " + e.message, true));
+  const v = window.prompt("Zadejte rodinný kód pro nákupy na Rohlíku:");
+  if (v && v.trim()){
+    localStorage.setItem(AKEY, v.trim());
+    updateCartButtons();
+    setMsg("Kód uložen — můžete odesílat do košíku.");
+  }
 });
 
 $("adults").value = S.adults; $("kids").value = S.kids;
 render();
 updateCartButtons();
-captureOAuthRedirect();
 </script>
 
 </body>
