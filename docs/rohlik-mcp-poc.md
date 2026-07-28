@@ -19,6 +19,14 @@
 - Reverse-engineered Rohlík API, username/password in env vars, "study purposes / personal use only".
 - Broader tools (delivery slots, discounts, frequent items) but ToS-risky and fragile. Use only if the official server lacks something we need.
 
+## Static-site (github.io) findings — 2026-07-28 evening
+
+- `mcp.rohlik.cz/mcp` has **full CORS** (origin echo + credentials + auth headers) — browsers can call the MCP directly.
+- `identity.rohlik.cz` has **no CORS** on token/register endpoints, and DCR **allowlists redirect URIs** (github.io and workers.dev rejected; localhost allowed). Device grant is advertised in discovery but **silently stripped** from DCR-registered clients. ⇒ a static site can never obtain tokens itself.
+- Refresh tokens **rotate on every refresh** — any server-side holder needs persistent storage.
+- Solution shipped: `backend/rohlik-cart-proxy.worker.js` (Cloudflare Worker + KV) holds the family refresh-token chain, injects the Bearer, and forwards **only** search/cart tools (no checkout/order mutations) to callers presenting the family code (X-App-Key) from allowed origins. Verified end-to-end from the live github.io page (search → review → add → remove).
+- ⚠️ The worker owns the poc client's token chain now — running `poc/rohlik.mjs` against the same stored login would rotate the chain and break the worker; re-login there if the CLI is needed.
+
 ## Architectural implications
 
 1. **The Supabase-backend plan works.** Because identity.rohlik.cz supports dynamic client registration + authorization-code + refresh tokens, our backend can register as an OAuth client, run the login redirect flow per user, store refresh tokens, and call `mcp.rohlik.cz/mcp` server-side as an MCP client. No scraping, no password handling.
