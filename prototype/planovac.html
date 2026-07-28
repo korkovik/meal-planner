@@ -857,7 +857,7 @@ let matchState = [];
 // talks to mcp.rohlik.cz directly (its CORS is open); only the OAuth token
 // endpoints lack CORS, so registration + token exchange go through
 // TOKEN_PROXY (backend/rohlik-token-proxy.worker.js). Empty = disabled.
-const TOKEN_PROXY = "";
+const TOKEN_PROXY = "https://rohlik-token-proxy.korkovik.workers.dev";
 const DIRECT_MCP = "https://mcp.rohlik.cz/mcp";
 const DIRECT_AUTH = "https://identity.rohlik.cz/oauth2/authorize";
 const CKEY = "rohlik-client", TKEY = "rohlik-tokens";
