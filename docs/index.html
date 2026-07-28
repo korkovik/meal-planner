@@ -117,6 +117,9 @@
   .pick .n { flex: 1; font-family: var(--serif); font-size: 16px; cursor: pointer; }
   .pick .m { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #cartFlow { margin-top: 12px; }
+  .status { margin: 10px 0 0; padding: 9px 12px; border-radius: 8px; font-size: 14px;
+            background: var(--accent-soft); border: 1px solid var(--accent); }
+  .status.err { background: transparent; border-color: var(--danger); color: var(--danger); }
   .match { display: grid; grid-template-columns: auto 1fr auto auto; gap: 3px 10px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--line); font-size: 13.5px; }
   .match .need { color: var(--muted); font-size: 12.5px; grid-column: 2 / 5; }
   .match select { font: inherit; font-size: 13px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-width: 0; max-width: 100%; }
@@ -195,8 +198,8 @@
         <div class="row" style="margin-top:10px">
           <button class="primary" id="cartBtn">Poslat do košíku na Rohlíku</button>
           <button id="copyBtn">Zkopírovat pro Clauda</button>
-          <span class="hint" id="cartMsg" style="margin:0"></span>
         </div>
+        <p id="cartMsg" class="status" hidden></p>
         <div id="cartFlow"></div>
         <p class="hint">Tlačítko najde produkty na rohlik.cz, ukáže je ke kontrole a po potvrzení je vloží
         do vašeho košíku (vyžaduje konektor „Rohlik“ v claude.ai). Platba zůstává na vás na rohlik.cz.</p>
@@ -686,6 +689,12 @@ function unwrap(res){
   const p = res && res.payload;
   return (p && typeof p==="object" && "result" in p) ? p.result : p;
 }
+function setMsg(html, err){
+  const el = $("cartMsg");
+  el.hidden = !html;
+  el.className = "status" + (err ? " err" : "");
+  el.innerHTML = html || "";
+}
 function mcpErrMsg(e){
   switch(e && e.code){
     case "server_not_connected":
@@ -701,16 +710,23 @@ function mcpErrMsg(e){
       return "Stránka nemá přístup ke konektorům — otevřete ji přes claude.ai a povolte jí přístup ke konektoru Rohlik.";
     case "blocked_by_policy": case "approval_required":
       return "Volání konektoru blokují zásady vaší organizace.";
+    case "cancelled":
+      return "Rohlík neodpověděl do 30 sekund — zkuste to znovu.";
     default:
       return "Spojení s Rohlíkem selhalo" + (e && e.message ? ": " + e.message : ".");
   }
 }
-async function mcpCall(tool, input, retryOnce){
-  try { return await window.claude.mcp.callTool(MCP_SERVER, tool, input); }
+async function mcpCall(tool, input, isRead){
+  // reads get a 30 s deadline so a hung call surfaces as an error instead of
+  // a frozen page; the write (add_items_to_cart) gets none — it must not be
+  // aborted into an unknown outcome.
+  const opts = () => (isRead && typeof AbortSignal!=="undefined" && AbortSignal.timeout)
+    ? { signal: AbortSignal.timeout(30000) } : undefined;
+  try { return await window.claude.mcp.callTool(MCP_SERVER, tool, input, opts()); }
   catch(e){
-    if (retryOnce && e && e.retryable === true){
+    if (isRead && e && e.retryable === true){
       await new Promise(r=>setTimeout(r, (e.retryAfterMs || 1200) + Math.random()*600));
-      return await window.claude.mcp.callTool(MCP_SERVER, tool, input);
+      return await window.claude.mcp.callTool(MCP_SERVER, tool, input, opts());
     }
     throw e;
   }
@@ -769,36 +785,38 @@ function renderReview(){
 async function confirmCart(){
   const picks = matchState.filter(m=>m.include && m.cands.length)
     .map(m=>({ product_id: m.cands[m.sel].p.productId, quantity: m.qty }));
-  if (!picks.length){ $("cartMsg").textContent = "Nic není vybráno."; return; }
+  if (!picks.length){ setMsg("Nic není vybráno.", true); return; }
   $("confirmCart").disabled = true;
-  $("cartMsg").textContent = "Přidávám do košíku…";
+  setMsg("Přidávám do košíku…");
   try {
     const res = unwrap(await mcpCall("add_items_to_cart", { items: picks }, false));
     const failed = (res && res.items_failed_to_add) || [];
     const okCount = picks.length - failed.length;
     $("cartFlow").innerHTML = "";
-    $("cartMsg").innerHTML = `V košíku je ${okCount} z ${picks.length} položek` +
+    setMsg(`V košíku je ${okCount} z ${picks.length} položek` +
       (failed.length ? ` (nepřidáno: ${failed.length})` : "") +
-      ` — dokončete nákup na <a href="https://www.rohlik.cz" target="_blank" rel="noopener">rohlik.cz</a>.`;
+      ` — dokončete nákup na <a href="https://www.rohlik.cz" target="_blank" rel="noopener">rohlik.cz</a>.`);
   } catch(e){
-    $("cartMsg").textContent = mcpErrMsg(e) + " Pokud jste klikli víckrát, zkontrolujte košík na rohlik.cz — položky mohly být přidány.";
+    setMsg(mcpErrMsg(e) + " Pokud jste klikli víckrát, zkontrolujte košík na rohlik.cz — položky mohly být přidány.", true);
     const btn = $("confirmCart"); if (btn) btn.disabled = false;
   }
 }
 $("cartBtn").addEventListener("click", async ()=>{
   const items = checkedItems();
-  if (!items.length){ $("cartMsg").textContent = "Nic není zaškrtnuto."; return; }
+  if (!items.length){ setMsg("Nic není zaškrtnuto.", true); return; }
   if (!window.claude || !window.claude.mcp){
-    $("cartMsg").textContent = "Přímé odeslání funguje jen na claude.ai s konektorem „Rohlik“ (URL https://mcp.rohlik.cz/mcp). Zatím použijte „Zkopírovat pro Clauda“.";
+    setMsg("Přímé odeslání funguje jen v artifactu na claude.ai s připojeným konektorem „Rohlik“ (URL https://mcp.rohlik.cz/mcp). Na této stránce použijte „Zkopírovat pro Clauda“.", true);
     return;
   }
   $("cartBtn").disabled = true;
   $("cartFlow").innerHTML = "";
+  const label = $("cartBtn").textContent;
   try {
     matchState = [];
     for (let i=0; i<items.length; i+=4){
       const chunk = items.slice(i, i+4);
-      $("cartMsg").textContent = `Hledám produkty… ${Math.min(i+4, items.length)}/${items.length}`;
+      $("cartBtn").textContent = `Hledám… ${Math.min(i+4, items.length)}/${items.length}`;
+      setMsg(`Hledám produkty na Rohlíku… ${Math.min(i+4, items.length)}/${items.length}`);
       const data = unwrap(await mcpCall("batch_search_products",
         { queries: chunk.map(it=>({ keyword: it.n, limit: 5 })) }, true));
       chunk.forEach((it,j)=>{
@@ -806,24 +824,25 @@ $("cartBtn").addEventListener("click", async ()=>{
         matchState.push({ item: it, cands, sel: 0, qty: cands.length ? cands[0].packages : 1, include: !!cands.length });
       });
     }
-    $("cartMsg").textContent = "Zkontrolujte návrh a potvrďte:";
+    setMsg("Zkontrolujte návrh a potvrďte:");
     renderReview();
   } catch(e){
-    $("cartMsg").textContent = mcpErrMsg(e);
+    setMsg(mcpErrMsg(e), true);
   } finally {
     $("cartBtn").disabled = false;
+    $("cartBtn").textContent = label;
   }
 });
 $("copyBtn").addEventListener("click", async ()=>{
   const items = checkedItems();
-  if (!items.length){ $("cartMsg").textContent = "Nic není zaškrtnuto."; return; }
+  if (!items.length){ setMsg("Nic není zaškrtnuto.", true); return; }
   const meals = S.plan.map(id=>R.find(r=>r.id===id).n);
   const text = "Naplň mi prosím košík na rohlik.cz podle tohoto seznamu (kupuj celá balení):\n"
     + items.map(l=>"- "+l.txt).join("\n")
     + "\n\nJídelníček týdne: " + meals.join("; ");
   try {
     await navigator.clipboard.writeText(text);
-    $("cartMsg").textContent = "Objednávka zkopírována — vložte ji Claudovi.";
+    setMsg("Objednávka zkopírována — vložte ji Claudovi.");
   } catch {
     window.prompt("Zkopírujte objednávku ručně:", text);
   }
