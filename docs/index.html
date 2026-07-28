@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plánovač večeří</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #F4F5F1;
+    --card: #FFFFFF;
+    --ink: #232820;
+    --muted: #6A7263;
+    --line: #E1E4DA;
+    --accent: #34724B;
+    --accent-soft: #E4EFE7;
+    --accent-ink: #FFFFFF;
+    --lock: #A66A1F;
+    --lock-soft: #F5EBD8;
+    --danger: #A83A2C;
+    --serif: Georgia, 'Times New Roman', serif;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151813; --card: #1D211A; --ink: #E7EAE0; --muted: #99A18C;
+      --line: #2C3126; --accent: #7CBE8C; --accent-soft: #24352A;
+      --accent-ink: #10240F; --lock: #D9A85C; --lock-soft: #38301F; --danger: #D97A6C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F5F1; --card: #FFFFFF; --ink: #232820; --muted: #6A7263;
+    --line: #E1E4DA; --accent: #34724B; --accent-soft: #E4EFE7;
+    --accent-ink: #FFFFFF; --lock: #A66A1F; --lock-soft: #F5EBD8; --danger: #A83A2C;
+  }
+  :root[data-theme="dark"] {
+    --bg: #151813; --card: #1D211A; --ink: #E7EAE0; --muted: #99A18C;
+    --line: #2C3126; --accent: #7CBE8C; --accent-soft: #24352A;
+    --accent-ink: #10240F; --lock: #D9A85C; --lock-soft: #38301F; --danger: #D97A6C;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); margin: 0; line-height: 1.5; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  header.top { margin-bottom: 26px; }
+  header.top h1 { font-family: var(--serif); font-size: 34px; margin: 0 0 4px; font-weight: 400; text-wrap: balance; }
+  header.top p { color: var(--muted); margin: 0; max-width: 62ch; }
+  .layout { display: grid; grid-template-columns: 290px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .panel + .panel { margin-top: 14px; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type="text"], input[type="number"] {
+    font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 7px 10px; width: 100%;
+  }
+  input[type="number"] { width: 70px; }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 12px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 10px 18px; }
+  button.small { font-size: 13px; padding: 4px 9px; }
+  button.ghost { border: none; background: none; color: var(--muted); padding: 4px 6px; }
+  button.ghost:hover { color: var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; background: var(--bg); cursor: pointer; user-select: none; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .tag { font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px 3px 11px; display: inline-flex; align-items: center; gap: 4px; }
+  .tag button { border: none; background: none; padding: 0 4px; color: var(--muted); font-size: 14px; line-height: 1; }
+  .tag button:hover { color: var(--danger); }
+  .factor { font-variant-numeric: tabular-nums; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; flex: 1; font-size: 13.5px; padding: 7px 4px; background: var(--bg); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .note-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .note-list li { display: flex; align-items: baseline; gap: 6px; font-size: 14px; }
+  .note-list li span { flex: 1; }
+  /* plan area */
+  .planbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .planbar input { flex: 1; min-width: 200px; }
+  .rubric { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .rub { font-size: 13px; border-radius: 999px; padding: 4px 12px; border: 1px solid var(--line); color: var(--muted); background: var(--card); }
+  .rub.met { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .rub.met::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+  .rub:not(.met)::before { content: "○ "; }
+  .meal { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .meal.locked { border-color: var(--lock); }
+  .meal-head { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 14px 16px; }
+  .meal-day { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  .meal.locked .meal-day::after { content: " · zamčeno"; color: var(--lock); }
+  .meal-name { font-family: var(--serif); font-size: 21px; margin: 1px 0 5px; cursor: pointer; text-wrap: balance; }
+  .meal-name:hover { color: var(--accent); }
+  .meal-meta { display: flex; flex-wrap: wrap; gap: 5px 12px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .meal-meta .fav { color: var(--lock); }
+  .meal-actions { display: flex; gap: 4px; align-items: start; grid-row: 1 / span 2; grid-column: 2; }
+  .meal-detail { border-top: 1px dashed var(--line); padding: 13px 16px; display: none; font-size: 14px; }
+  .meal.open .meal-detail { display: block; }
+  .meal-detail h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 10px 0 5px; }
+  .meal-detail h4:first-child { margin-top: 0; }
+  .meal-detail ul, .meal-detail ol { margin: 0; padding-left: 20px; }
+  .meal-detail li { margin: 2px 0; }
+  .empty { text-align: center; color: var(--muted); padding: 46px 20px; border: 1px dashed var(--line); border-radius: 10px; }
+  details.shop { margin-top: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  details.shop summary { cursor: pointer; font-weight: 600; }
+  details.shop ul { columns: 2; margin: 10px 0 4px; padding-left: 0; list-style: none; font-size: 14px; font-variant-numeric: tabular-nums; }
+  details.shop li label { display: flex; gap: 7px; align-items: baseline; cursor: pointer; }
+  details.shop li label:has(input:not(:checked)) { color: var(--muted); text-decoration: line-through; }
+  input[type="checkbox"] { accent-color: var(--accent); }
+  @media (max-width: 620px) { details.shop ul { columns: 1; } }
+  dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); max-width: 560px; width: calc(100vw - 40px); padding: 18px; }
+  dialog::backdrop { background: rgba(20, 24, 18, 0.45); }
+  .pick-list { max-height: 55vh; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .pick:hover { border-color: var(--accent); }
+  .pick .n { flex: 1; font-family: var(--serif); font-size: 16px; cursor: pointer; }
+  .pick .m { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #cartFlow { margin-top: 12px; }
+  .match { display: grid; grid-template-columns: auto 1fr auto auto; gap: 3px 10px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--line); font-size: 13.5px; }
+  .match .need { color: var(--muted); font-size: 12.5px; grid-column: 2 / 5; }
+  .match select { font: inherit; font-size: 13px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-width: 0; max-width: 100%; }
+  .match input[type="number"] { width: 56px; }
+  .badge { font-size: 11px; border-radius: 999px; padding: 2px 8px; background: var(--lock-soft); color: var(--lock); font-weight: 600; white-space: nowrap; }
+  .cart-total { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .cart-total b { font-variant-numeric: tabular-nums; }
+  footer.note { margin-top: 30px; font-size: 13px; color: var(--muted); max-width: 70ch; }
+  @media (prefers-reduced-motion: no-preference) {
+    .meal { transition: border-color 0.15s ease; }
+    .chip, button { transition: background 0.12s ease, border-color 0.12s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Plánovač večeří</h1>
+    <p>Pět vyvážených večeří na týden — tři všední, dvě víkendové. Zamkněte, co se líbí, zbytek přegenerujte.</p>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="panel">
+        <p class="label">Rodina</p>
+        <div class="row">
+          <label>Dospělí <input type="number" id="adults" min="1" max="8" value="2"></label>
+        </div>
+        <div style="margin-top:10px">
+          <label for="kids">Věk dětí (oddělený čárkou)</label>
+          <input type="text" id="kids" placeholder="např. 7, 4" inputmode="numeric">
+        </div>
+        <p class="hint">Velikost porcí: <b class="factor" id="factor">2,0</b> dospělých porcí</p>
+      </div>
+
+      <div class="panel">
+        <p class="label">Nesmí obsahovat</p>
+        <div class="chips" id="exclusions"></div>
+        <p class="hint">Tvrdý filtr pro celou rodinu — alergie a vyloučené suroviny.</p>
+      </div>
+
+      <div class="panel">
+        <p class="label">Nemáme rádi</p>
+        <div class="chips" id="dislikes" style="margin-bottom:8px"></div>
+        <input type="text" id="dislikeInput" placeholder="např. květák — Enter přidá">
+      </div>
+
+      <div class="panel">
+        <p class="label">Čas na vaření</p>
+        <div class="seg" id="timePref">
+          <button data-v="rychle">Rychle</button>
+          <button data-v="stredni" class="on">Střední</button>
+          <button data-v="pohodove">Pohodově</button>
+        </div>
+        <p class="hint">Měkká preference — generátor ji zohlední, ale netrvá na ní.</p>
+      </div>
+
+      <div class="panel">
+        <p class="label">Stálé poznámky</p>
+        <ul class="note-list" id="standingList"></ul>
+        <input type="text" id="standingInput" placeholder="např. děti nejedí ryby — Enter přidá">
+        <p class="hint">Platí každý týden, dokud je nesmažete.</p>
+      </div>
+    </aside>
+
+    <section>
+      <div class="planbar">
+        <button class="primary" id="generate">Vygenerovat týden</button>
+        <input type="text" id="oneoffInput" placeholder="Jen pro tento týden: např. míň těstovin">
+      </div>
+      <div class="rubric" id="rubric" hidden></div>
+      <div id="plan"><div class="empty">Zatím žádný plán. Nastavte rodinu vlevo a vygenerujte první týden.</div></div>
+      <details class="shop" id="shop" hidden>
+        <summary>Nákupní seznam na týden</summary>
+        <p class="hint" style="margin:8px 0 0">Odškrtněte, co už máte doma — do košíku jde jen zaškrtnuté.</p>
+        <ul id="shopList"></ul>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="cartBtn">Poslat do košíku na Rohlíku</button>
+          <button id="copyBtn">Zkopírovat pro Clauda</button>
+          <span class="hint" id="cartMsg" style="margin:0"></span>
+        </div>
+        <div id="cartFlow"></div>
+        <p class="hint">Tlačítko najde produkty na rohlik.cz, ukáže je ke kontrole a po potvrzení je vloží
+        do vašeho košíku (vyžaduje konektor „Rohlik“ v claude.ai). Platba zůstává na vás na rohlik.cz.</p>
+      </details>
+      <footer class="note">
+        Prototyp: recepty pochází z vestavěné ukázkové databáze a poznámky vyhodnocuje jednoduchý
+        interpret klíčových slov. Ve finální aplikaci obojí zajišťuje AI nad rostoucí databází receptů.
+      </footer>
+    </section>
+  </div>
+</div>
+
+<dialog id="picker">
+  <p class="label" style="margin-bottom:4px">Vybrat jídlo ručně</p>
+  <input type="text" id="pickSearch" placeholder="Hledat podle názvu nebo suroviny…">
+  <div class="pick-list" id="pickList"></div>
+  <div class="row" style="justify-content:end; margin-top:12px"><button id="pickClose">Zavřít</button></div>
+</dialog>
+
+<script>
+// ---------- recipe pool (per 4 adult portions) ----------
+const R = [
+  {id:1,n:"Čočka na kyselo s vejcem a kyselou okurkou",t:40,k:"česká",p:"luštěniny",wg:0,fr:0,veg:1,obs:["vejce","lepek"],
+   ing:[["čočka",400,"g"],["cibule",2,"ks"],["vejce",4,"ks"],["hladká mouka",30,"g"],["ocet",30,"ml"],["kyselé okurky",4,"ks"]],
+   st:["Čočku namočte a uvařte doměkka.","Na cibulce připravte světlou zásmažku a vmíchejte ji do čočky.","Dochuťte octem a solí, podávejte s vejcem natvrdo a okurkou."]},
+  {id:2,n:"Pečený losos s bramborem a brokolicí",t:35,k:"středomořská",p:"ryba",tuc:1,wg:0,fr:0,veg:1,obs:["ryby"],
+   ing:[["losos filet",500,"g"],["brambory",800,"g"],["brokolice",400,"g"],["citron",1,"ks"],["olivový olej",40,"ml"]],
+   st:["Brambory vařte 20 minut, brokolici spařte.","Lososa osolte, pokapejte olejem a citronem, pečte 12–15 minut na 200 °C."]},
+  {id:3,n:"Kuře na paprice s houskovým knedlíkem",t:60,k:"česká",p:"kuře",wg:0,fr:0,veg:0,obs:["lepek","laktóza"],
+   ing:[["kuřecí stehna",700,"g"],["cibule",2,"ks"],["mletá paprika",15,"g"],["smetana na vaření",250,"ml"],["houskový knedlík",1,"balení"]],
+   st:["Kuře opečte, přidejte cibuli a papriku, podlijte a duste 40 minut.","Zjemněte smetanou a podávejte s knedlíkem."]},
+  {id:4,n:"Hovězí guláš s celozrnným chlebem",t:120,k:"česká",p:"hovězí",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["hovězí kližka",600,"g"],["cibule",4,"ks"],["mletá paprika",20,"g"],["kmín",5,"g"],["celozrnný chléb",400,"g"]],
+   st:["Cibuli osmahněte dozlatova, přidejte maso a papriku.","Podlijte a duste 90 minut doměkka, dochuťte kmínem a česnekem."]},
+  {id:5,n:"Špagety boloňské",t:45,k:"italská",p:"hovězí",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["mleté hovězí",500,"g"],["špagety",400,"g"],["krájená rajčata",800,"g"],["mrkev",2,"ks"],["cibule",1,"ks"]],
+   st:["Osmahněte cibuli s mrkví, přidejte maso a rajčata, duste 30 minut.","Uvařte špagety a promíchejte s omáčkou."]},
+  {id:6,n:"Celozrnné penne se špenátem a ricottou",t:30,k:"italská",p:"sýr",wg:1,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["celozrnné penne",400,"g"],["špenát",400,"g"],["ricotta",250,"g"],["česnek",3,"stroužky"],["parmazán",50,"g"]],
+   st:["Penne uvařte. Špenát zprudka osmahněte s česnekem.","Vmíchejte ricottu a těstoviny, posypte parmazánem."]},
+  {id:7,n:"Kuřecí rizoto s hráškem",t:40,k:"italská",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kuřecí prsa",400,"g"],["rýže arborio",320,"g"],["hrášek",250,"g"],["cibule",1,"ks"],["parmazán",60,"g"]],
+   st:["Opečte kuře a cibuli, přidejte rýži a postupně podlévejte vývarem.","Nakonec vmíchejte hrášek a parmazán."]},
+  {id:8,n:"Tortilly s fazolemi a zeleninou",t:30,k:"mexická",p:"luštěniny",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["červené fazole",480,"g"],["pšeničné tortilly",8,"ks"],["paprika",2,"ks"],["kukuřice",200,"g"],["rajčata",3,"ks"]],
+   st:["Fazole prohřejte s kořením a zeleninou.","Plňte do tortill, přidejte čerstvá rajčata."]},
+  {id:9,n:"Chilli con carne s celozrnnou rýží",t:50,k:"mexická",p:"hovězí",wg:1,fr:0,veg:1,obs:[],
+   ing:[["mleté hovězí",500,"g"],["červené fazole",400,"g"],["krájená rajčata",800,"g"],["celozrnná rýže",320,"g"],["cibule",2,"ks"]],
+   st:["Osmahněte cibuli a maso, přidejte rajčata a fazole, duste 30 minut.","Podávejte s uvařenou celozrnnou rýží."]},
+  {id:10,n:"Smažený sýr s bramborem a zeleninovým salátem",t:30,k:"česká",p:"sýr",wg:0,fr:1,veg:1,obs:["lepek","laktóza","vejce"],
+   ing:[["eidam v celku",400,"g"],["strouhanka",100,"g"],["vejce",2,"ks"],["brambory",800,"g"],["míchaný salát",300,"g"]],
+   st:["Plátky sýra obalte v trojobalu a osmažte dozlatova.","Podávejte s vařeným bramborem a salátem."]},
+  {id:11,n:"Kuřecí stir-fry se zeleninou a nudlemi",t:25,k:"asijská",p:"kuře",wg:0,fr:0,veg:1,obs:["lepek","sója"],
+   ing:[["kuřecí prsa",450,"g"],["asijské nudle",300,"g"],["paprika",2,"ks"],["mrkev",2,"ks"],["sójová omáčka",50,"ml"]],
+   st:["Kuře zprudka orestujte, přidejte zeleninu.","Vmíchejte uvařené nudle a sójovou omáčku."]},
+  {id:12,n:"Treska s bylinkovou strouhankou a pečenou zeleninou",t:35,k:"středomořská",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby","lepek"],
+   ing:[["treska filet",550,"g"],["strouhanka",80,"g"],["petržel",1,"svazek"],["cuketa",1,"ks"],["cherry rajčata",250,"g"]],
+   st:["Tresku posypte bylinkovou strouhankou.","Pečte se zeleninou 20 minut na 200 °C."]},
+  {id:13,n:"Krůtí sekaná s bramborovou kaší",t:70,k:"česká",p:"krůta",wg:0,fr:0,veg:0,obs:["vejce","lepek","laktóza"],
+   ing:[["mleté krůtí",600,"g"],["vejce",2,"ks"],["strouhanka",80,"g"],["brambory",900,"g"],["mléko",150,"ml"]],
+   st:["Ze surovin vypracujte sekanou a pečte 45 minut.","Podávejte s bramborovou kaší."]},
+  {id:14,n:"Dhal z červené čočky s rýží",t:35,k:"indická",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["červená čočka",400,"g"],["kokosové mléko",400,"ml"],["rajčata",3,"ks"],["kari koření",15,"g"],["rýže basmati",320,"g"]],
+   st:["Čočku vařte s kořením a rajčaty 20 minut.","Zjemněte kokosovým mlékem, podávejte s rýží."]},
+  {id:15,n:"Kuře tikka masala s rýží",t:50,k:"indická",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kuřecí prsa",550,"g"],["jogurt",200,"g"],["krájená rajčata",400,"g"],["garam masala",15,"g"],["rýže basmati",320,"g"]],
+   st:["Kuře marinujte v jogurtu s kořením, pak opečte.","Duste v rajčatové omáčce, podávejte s rýží."]},
+  {id:16,n:"Zeleninové kari s cizrnou",t:35,k:"indická",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["cizrna",480,"g"],["květák",1,"ks"],["kokosové mléko",400,"ml"],["kari pasta",50,"g"],["rýže basmati",320,"g"]],
+   st:["Zeleninu orestujte s kari pastou.","Přidejte cizrnu a kokosové mléko, duste 15 minut."]},
+  {id:17,n:"Bramboráky s česnekem a majoránkou",t:40,k:"česká",p:"vejce",wg:0,fr:1,veg:1,obs:["lepek","vejce"],
+   ing:[["brambory",1000,"g"],["vejce",2,"ks"],["hladká mouka",100,"g"],["česnek",4,"stroužky"],["majoránka",5,"g"]],
+   st:["Brambory nastrouhejte, smíchejte s vejci, moukou a kořením.","Smažte placky dozlatova z obou stran."]},
+  {id:18,n:"Řecký salát s grilovaným kuřetem a pitou",t:25,k:"středomořská",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza","lepek"],
+   ing:[["kuřecí prsa",450,"g"],["rajčata",4,"ks"],["okurka",1,"ks"],["balkánský sýr",200,"g"],["pita chléb",4,"ks"]],
+   st:["Kuře ogrilujte a nakrájejte.","Smíchejte zeleninu se sýrem a olivami, podávejte s pitou."]},
+  {id:19,n:"Tuňákové těstoviny se zeleninou",t:25,k:"italská",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby","lepek"],
+   ing:[["tuňák v oleji",300,"g"],["těstoviny",400,"g"],["cherry rajčata",250,"g"],["cuketa",1,"ks"],["česnek",2,"stroužky"]],
+   st:["Uvařte těstoviny, orestujte zeleninu s česnekem.","Vmíchejte tuňáka a těstoviny, dochuťte citronem."]},
+  {id:20,n:"Pečené kuře s kořenovou zeleninou a bramborami",t:75,k:"česká",p:"kuře",wg:0,fr:0,veg:1,obs:[],
+   ing:[["kuře",1400,"g"],["brambory",800,"g"],["mrkev",3,"ks"],["petržel kořen",2,"ks"],["česnek",4,"stroužky"]],
+   st:["Kuře osolte a potřete máslem či olejem.","Pečte na zelenině a bramborách 60 minut na 190 °C."]},
+  {id:21,n:"Vepřová panenka s pečenými bramborami a mrkví",t:45,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové"],
+   ing:[["vepřová panenka",550,"g"],["brambory",800,"g"],["mrkev",4,"ks"],["dijonská hořčice",30,"g"],["rozmarýn",2,"snítky"]],
+   st:["Panenku potřete hořčicí a opečte.","Dopečte s bramborami a mrkví 25 minut na 200 °C."]},
+  {id:22,n:"Celozrnný kuskus se zeleninou a cizrnou",t:25,k:"blízkovýchodní",p:"luštěniny",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["celozrnný kuskus",300,"g"],["cizrna",400,"g"],["cuketa",1,"ks"],["paprika",2,"ks"],["citron",1,"ks"]],
+   st:["Kuskus zalijte vroucí vodou.","Orestujte zeleninu s cizrnou a kořením, smíchejte a dochuťte citronem."]},
+  {id:23,n:"Falafel v pitě s jogurtovým dipem",t:45,k:"blízkovýchodní",p:"luštěniny",wg:0,fr:1,veg:1,obs:["lepek","laktóza"],
+   ing:[["cizrna sušená",300,"g"],["pita chléb",4,"ks"],["jogurt bílý",250,"g"],["rajčata",3,"ks"],["koriandr",1,"svazek"]],
+   st:["Z namočené cizrny umixujte těsto a smažte kuličky.","Plňte do pity se zeleninou a jogurtovým dipem."]},
+  {id:24,n:"Pstruh na másle s bramborami a dušenou mrkví",t:35,k:"česká",p:"ryba",tuc:1,wg:0,fr:0,veg:1,obs:["ryby","laktóza"],
+   ing:[["pstruh",4,"ks"],["máslo",60,"g"],["brambory",800,"g"],["mrkev",4,"ks"],["petržel",1,"svazek"]],
+   st:["Pstruhy opečte na másle po 4 minutách z každé strany.","Podávejte s petrželovými bramborami a dušenou mrkví."]},
+  {id:25,n:"Zapečené těstoviny s brokolicí a šunkou",t:45,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["lepek","laktóza","vepřové"],
+   ing:[["těstoviny",400,"g"],["šunka",200,"g"],["brokolice",400,"g"],["smetana na vaření",250,"ml"],["sýr na strouhání",150,"g"]],
+   st:["Uvařené těstoviny smíchejte se šunkou, brokolicí a smetanou.","Posypte sýrem a zapečte 20 minut."]},
+  {id:26,n:"Quesadilly s fazolemi a sýrem",t:20,k:"mexická",p:"luštěniny",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["tortilly",8,"ks"],["černé fazole",400,"g"],["čedar",200,"g"],["kukuřice",150,"g"],["avokádo",2,"ks"]],
+   st:["Tortilly naplňte fazolemi, kukuřicí a sýrem.","Opečte nasucho z obou stran, podávejte s avokádem."]},
+  {id:27,n:"Miso polévka s tofu, nudlemi a pak choi",t:30,k:"asijská",p:"tofu",wg:0,fr:0,veg:1,obs:["sója","lepek"],
+   ing:[["tofu",400,"g"],["miso pasta",60,"g"],["nudle udon",300,"g"],["pak choi",2,"ks"],["jarní cibulka",1,"svazek"]],
+   st:["Vývar s miso pastou přiveďte k varu, přidejte nudle.","Vložte tofu a pak choi, krátce provařte."]},
+  {id:28,n:"Smažená rýže s vejci a zeleninou",t:20,k:"asijská",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","sója"],
+   ing:[["rýže",320,"g"],["vejce",4,"ks"],["hrášek",200,"g"],["mrkev",2,"ks"],["sójová omáčka",40,"ml"]],
+   st:["Uvařenou vychladlou rýži orestujte se zeleninou.","Vmíchejte vejce a dochuťte sójovou omáčkou."]},
+  {id:29,n:"Hovězí tacos s kukuřičnými tortillami",t:30,k:"mexická",p:"hovězí",wg:0,fr:0,veg:1,obs:[],
+   ing:[["mleté hovězí",500,"g"],["kukuřičné tortilly",12,"ks"],["ledový salát",1,"ks"],["rajčata",3,"ks"],["limetka",1,"ks"]],
+   st:["Maso orestujte s kořením.","Plňte do tortill se salátem a rajčaty, zakápněte limetkou."]},
+  {id:30,n:"Květákové placičky s jogurtovým dipem",t:35,k:"česká",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","lepek","laktóza"],
+   ing:[["květák",1,"ks"],["vejce",3,"ks"],["hladká mouka",80,"g"],["jogurt bílý",250,"g"],["pažitka",1,"svazek"]],
+   st:["Květák uvařte, rozmačkejte a smíchejte s vejci a moukou.","Opékejte placičky na pánvi, podávejte s dipem."]},
+  {id:31,n:"Gnocchi se smetanou, cuketou a parmazánem",t:25,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["lepek","laktóza"],
+   ing:[["gnocchi",600,"g"],["cuketa",2,"ks"],["smetana na vaření",250,"ml"],["parmazán",60,"g"],["česnek",2,"stroužky"]],
+   st:["Cuketu orestujte s česnekem, přidejte smetanu.","Vmíchejte uvařené gnocchi a parmazán."]},
+  {id:32,n:"Celozrnný wrap s krůtím masem a zeleninou",t:20,k:"americká",p:"krůta",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["krůtí prsa",450,"g"],["celozrnné tortilly",8,"ks"],["ledový salát",1,"ks"],["rajčata",3,"ks"],["zakysaná smetana",150,"g"]],
+   st:["Krůtí nudličky orestujte s kořením.","Plňte do wrapů se zeleninou a dresinkem."]},
+  {id:33,n:"Zapečená treska s rajčaty a bramborem",t:40,k:"středomořská",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby"],
+   ing:[["treska filet",550,"g"],["brambory",700,"g"],["rajčata",4,"ks"],["olivy",100,"g"],["olivový olej",40,"ml"]],
+   st:["Předvařené brambory vložte do pekáče s rajčaty a olivami.","Přidejte tresku a zapékejte 20 minut na 200 °C."]},
+  {id:34,n:"Špenátová omeleta s celozrnným chlebem",t:15,k:"francouzská",p:"vejce",wg:1,fr:0,veg:1,obs:["vejce","lepek","laktóza"],
+   ing:[["vejce",8,"ks"],["špenát",300,"g"],["sýr na strouhání",100,"g"],["celozrnný chléb",400,"g"],["máslo",30,"g"]],
+   st:["Špenát krátce osmahněte.","Zalijte rozšlehanými vejci, posypte sýrem a nechte ztuhnout."]},
+  {id:35,n:"Ratatouille s pečeným bramborem a sázeným vejcem",t:50,k:"francouzská",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce"],
+   ing:[["lilek",1,"ks"],["cuketa",2,"ks"],["paprika",2,"ks"],["krájená rajčata",400,"g"],["brambory",800,"g"],["vejce",4,"ks"]],
+   st:["Zeleninu duste s rajčaty do měkka.","Podávejte s pečenými bramborami a sázeným vejcem."]},
+  {id:36,n:"Čočkové boloňské s celozrnnými špagetami",t:40,k:"italská",p:"luštěniny",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["čočka",300,"g"],["celozrnné špagety",400,"g"],["krájená rajčata",800,"g"],["mrkev",2,"ks"],["celer",1,"ks"]],
+   st:["Zeleninu orestujte, přidejte čočku a rajčata, duste 25 minut.","Podávejte s celozrnnými špagetami."]},
+  {id:37,n:"Kuřecí paella se zeleninou",t:55,k:"středomořská",p:"kuře",wg:0,fr:0,veg:1,obs:[],
+   ing:[["kuřecí stehna",600,"g"],["rýže",320,"g"],["paprika",2,"ks"],["hrášek",200,"g"],["šafrán či kurkuma",2,"g"]],
+   st:["Kuře opečte, přidejte rýži, koření a vývar.","Vařte bez míchání 20 minut, nakonec přidejte hrášek."]},
+  {id:38,n:"Vepřový řízek s bramborovým salátem",t:60,k:"česká",p:"vepřové",wg:0,fr:1,veg:1,obs:["vepřové","lepek","vejce","laktóza"],
+   ing:[["vepřová kotleta",600,"g"],["strouhanka",120,"g"],["vejce",3,"ks"],["brambory",900,"g"],["sterilovaná zelenina",300,"g"]],
+   st:["Naklepané kotlety obalte v trojobalu a osmažte.","Připravte bramborový salát se zeleninou a jogurtovou majonézou."]},
+  {id:39,n:"Pečené batáty plněné fazolemi a kukuřicí",t:45,k:"americká",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["batáty",4,"ks"],["černé fazole",400,"g"],["kukuřice",200,"g"],["rajčata",2,"ks"],["limetka",1,"ks"]],
+   st:["Batáty pečte 35 minut doměkka.","Rozkrojte a plňte směsí fazolí, kukuřice a rajčat."]},
+  {id:40,n:"Uzená makrela s bramborem a listovým špenátem",t:25,k:"česká",p:"ryba",tuc:1,wg:0,fr:0,veg:1,obs:["ryby"],
+   ing:[["uzená makrela",400,"g"],["brambory",800,"g"],["listový špenát",300,"g"],["cibule",1,"ks"],["citron",1,"ks"]],
+   st:["Brambory uvařte, špenát zprudka osmahněte s cibulí.","Podávejte s okrájenou makrelou a citronem."]},
+  {id:41,n:"Krůtí nudličky s bulgurem a zeleninou",t:30,k:"blízkovýchodní",p:"krůta",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["krůtí prsa",450,"g"],["bulgur",300,"g"],["cuketa",1,"ks"],["paprika",2,"ks"],["citron",1,"ks"]],
+   st:["Bulgur uvařte. Krůtí nudličky orestujte se zeleninou.","Smíchejte, dochuťte citronem a bylinkami."]},
+  {id:42,n:"Dýňové rizoto s parmazánem",t:40,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["dýně hokaido",600,"g"],["rýže arborio",320,"g"],["cibule",1,"ks"],["parmazán",80,"g"],["máslo",40,"g"]],
+   st:["Dýni orestujte s cibulí, přidejte rýži.","Postupně podlévejte vývarem, nakonec vmíchejte parmazán."]},
+  {id:43,n:"Kuřecí pad thai",t:35,k:"asijská",p:"kuře",wg:0,fr:0,veg:1,obs:["ořechy","vejce","sója"],
+   ing:[["kuřecí prsa",450,"g"],["rýžové nudle",300,"g"],["vejce",2,"ks"],["arašídy",80,"g"],["limetka",2,"ks"]],
+   st:["Kuře orestujte, přidejte namočené nudle a vejce.","Dochuťte omáčkou a limetkou, posypte arašídy."]},
+  {id:44,n:"Hrachová kaše s opečenou cibulkou a celozrnným chlebem",t:45,k:"česká",p:"luštěniny",wg:1,fr:0,veg:1,obs:["lepek"],
+   ing:[["půlený hrách",400,"g"],["cibule",3,"ks"],["celozrnný chléb",400,"g"],["majoránka",5,"g"],["česnek",3,"stroužky"]],
+   st:["Namočený hrách uvařte doměkka a umixujte.","Dochuťte česnekem a majoránkou, podávejte s opečenou cibulkou."]},
+];
+
+// ---------- state ----------
+const EXCL = ["vepřové","hovězí","ryby","lepek","laktóza","vejce","ořechy","sója"];
+const SLOTS = ["Všední den 1","Všední den 2","Všední den 3","Víkend 1","Víkend 2"];
+const KEY = "planovac-vecere-v1";
+let S = { adults: 2, kids: "", excl: [], dislikes: [], time: "stredni",
+          standing: [], favs: [], plan: null, locked: [false,false,false,false,false] };
+try { const saved = JSON.parse(localStorage.getItem(KEY)); if (saved) S = Object.assign(S, saved); } catch {}
+const save = () => localStorage.setItem(KEY, JSON.stringify(S));
+const $ = (id) => document.getElementById(id);
+
+// ---------- household factor ----------
+function kidFactor(a){ return a<=3?0.4 : a<=8?0.6 : a<=13?0.8 : a<=18?1.1 : 1.0; }
+function factor(){
+  const kids = S.kids.split(/[,;\s]+/).filter(Boolean).map(Number).filter(n=>!isNaN(n)&&n>=0);
+  return S.adults*1.0 + kids.reduce((s,a)=>s+kidFactor(a),0);
+}
+
+// ---------- comment interpreter (keyword prototype) ----------
+const CATS = {
+  ryby:["ryb","losos","tresk","pstruh","makrel","tuňák"],
+  "těstoviny":["těstovin","špaget","penne","gnocchi","nudl"],
+  "kuře":["kuř","kuřec"],
+  "krůta":["krůt"],
+  "hovězí":["hověz"],
+  "vepřové":["vepřov","šunk","slanin"],
+  "luštěniny":["čočk","fazol","cizrn","hrách","hrachov","falafel","luštěnin"],
+  brambory:["brambor","batát"],
+  "rýže":["rýž","rizot","paell"],
+  "sýr":["sýr","parmazán","ricott","čedar"],
+  vejce:["vejc","omelet"],
+  "sladké":["sladk"],
+};
+function recipeText(r){ return (r.n+" "+r.ing.map(i=>i[0]).join(" ")).toLowerCase(); }
+function interpret(notes){
+  const fx = { exclude:[], penal:[], boost:[] };
+  for (const note of notes){
+    const t = note.toLowerCase();
+    const neg = /(nejed|nejí |nechce|žádn|vynech|\bbez\b|alergi)/.test(t);
+    const less = /(míň|méně|omez)/.test(t);
+    const more = /(víc|více|přidej|chceme|rádi)/.test(t);
+    for (const [cat, kws] of Object.entries(CATS)){
+      if (kws.some(k=>t.includes(k)) || t.includes(cat)){
+        if (neg) fx.exclude.push(kws);
+        else if (less) fx.penal.push(kws);
+        else if (more) fx.boost.push(kws);
+      }
+    }
+  }
+  return fx;
+}
+function fxScore(r, fx){
+  const txt = recipeText(r);
+  if (fx.exclude.some(kws=>kws.some(k=>txt.includes(k)))) return null;
+  let s = 0;
+  if (fx.penal.some(kws=>kws.some(k=>txt.includes(k)))) s -= 3.5;
+  if (fx.boost.some(kws=>kws.some(k=>txt.includes(k)))) s += 3;
+  return s;
+}
+
+// ---------- rubric ----------
+const RED = new Set(["hovězí","vepřové"]);
+function rubric(plan){
+  const rs = plan.map(id=>R.find(r=>r.id===id));
+  const fish = rs.filter(r=>r.p==="ryba");
+  const prot = {}; rs.forEach(r=>prot[r.p]=(prot[r.p]||0)+1);
+  return [
+    { n:"Ryba aspoň 1×", met: fish.length>=1, d: fish.some(r=>r.tuc) ? "včetně tučné ryby" : "tučná ryba je ještě lepší" },
+    { n:"Luštěniny aspoň 1×", met: rs.some(r=>r.p==="luštěniny") },
+    { n:"Červené maso max 2×", met: rs.filter(r=>RED.has(r.p)).length<=2 },
+    { n:"Zelenina v každém jídle", met: rs.every(r=>r.veg) },
+    { n:"Celozrnné aspoň 2×", met: rs.filter(r=>r.wg).length>=2 },
+    { n:"Žádný protein víc než 2×", met: Object.values(prot).every(c=>c<=2) },
+    { n:"Aspoň 3 kuchyně", met: new Set(rs.map(r=>r.k)).size>=3 },
+    { n:"Smažené max 1×", met: rs.filter(r=>r.fr).length<=1 },
+  ];
+}
+
+// ---------- generator ----------
+function hardFilter(r, fx){
+  if (r.obs.some(o=>S.excl.includes(o))) return false;
+  if (S.excl.includes("vepřové") && r.p==="vepřové") return false;
+  if (S.excl.includes("hovězí") && r.p==="hovězí") return false;
+  if (S.excl.includes("ryby") && r.p==="ryba") return false;
+  const txt = recipeText(r);
+  if (S.dislikes.some(d=>txt.includes(d.toLowerCase()))) return false;
+  if (fxScore(r, fx) === null) return false;
+  return true;
+}
+function slotScore(r, picked, fx){
+  const rs = picked.map(id=>R.find(x=>x.id===id));
+  let s = Math.random()*1.2;
+  const fish = rs.filter(x=>x.p==="ryba").length;
+  if (r.p==="ryba"){ s += fish===0 ? 3 : (fish===1 ? 0.5 : -3); if (r.tuc) s += 0.8; }
+  if (r.p==="luštěniny" && !rs.some(x=>x.p==="luštěniny")) s += 2.5;
+  if (RED.has(r.p) && rs.filter(x=>RED.has(x.p)).length>=2) s -= 4;
+  if (!r.veg) s -= 2;
+  if (r.wg && rs.filter(x=>x.wg).length<2) s += 1.5;
+  if (rs.filter(x=>x.p===r.p).length>=2) s -= 4;
+  if (!rs.some(x=>x.k===r.k)) s += 1;
+  if (r.fr) s -= rs.some(x=>x.fr) ? 4 : 0.5;
+  if (S.favs.includes(r.id)) s += 2;
+  if (S.time==="rychle") s -= Math.max(0, r.t-30)/15;
+  if (S.time==="stredni") s -= Math.max(0, r.t-50)/20;
+  s += fxScore(r, fx) || 0;
+  return s;
+}
+function pickOne(picked, fx){
+  const cands = R.filter(r=>!picked.includes(r.id) && hardFilter(r, fx))
+    .map(r=>({ r, s: slotScore(r, picked, fx) }))
+    .sort((a,b)=>b.s-a.s).slice(0, 6);
+  if (!cands.length) return null;
+  const w = cands.map((c,i)=>Math.exp(-i*0.55));
+  let x = Math.random()*w.reduce((a,b)=>a+b,0);
+  for (let i=0;i<cands.length;i++){ x -= w[i]; if (x<=0) return cands[i].r.id; }
+  return cands[0].r.id;
+}
+function generate(){
+  const notes = [...S.standing, $("oneoffInput").value.trim()].filter(Boolean);
+  const fx = interpret(notes);
+  const plan = S.plan ? [...S.plan] : [null,null,null,null,null];
+  for (let i=0;i<5;i++) if (!S.locked[i] || plan[i]===null) plan[i] = null;
+  for (let i=0;i<5;i++) if (plan[i]===null) plan[i] = pickOne(plan.filter(Boolean), fx);
+  if (plan.some(p=>p===null)){
+    alert("Omezení jsou tak přísná, že se nepodařilo sestavit celý týden. Zkuste některá uvolnit.");
+    return;
+  }
+  S.plan = plan; save(); render();
+}
+function rerollSlot(i){
+  const notes = [...S.standing, $("oneoffInput").value.trim()].filter(Boolean);
+  const fx = interpret(notes);
+  const others = S.plan.filter((_,j)=>j!==i);
+  const next = pickOne(others, fx);
+  if (next){ S.plan[i] = next; save(); render(); }
+}
+
+// ---------- shopping list ----------
+function fmtQty(q){
+  const r = q>=100 ? Math.round(q/10)*10 : Math.round(q*10)/10;
+  return String(r).replace(".", ",");
+}
+const COUNT = new Set(["ks","svazek","balení","stroužky","snítky"]);
+function shopping(){
+  const f = factor()/4;
+  const agg = new Map();
+  for (const id of S.plan){
+    const r = R.find(x=>x.id===id);
+    for (const [n,q,u] of r.ing){
+      const k = n+"|"+u;
+      agg.set(k, (agg.get(k)||0) + q*f);
+    }
+  }
+  return [...agg.entries()].map(([k,q])=>{
+    const [n,u] = k.split("|");
+    const qty = COUNT.has(u) ? Math.ceil(q) : q;
+    const txt = COUNT.has(u) ? `${n} — ${qty} ${u}` : `${n} — ${fmtQty(q)} ${u}`;
+    return { n, q: qty, u, txt };
+  }).sort((a,b)=>a.txt.localeCompare(b.txt,"cs"));
+}
+
+// ---------- rendering ----------
+function render(){
+  $("factor").textContent = factor().toFixed(1).replace(".", ",");
+  $("exclusions").innerHTML = EXCL.map(e=>
+    `<button class="chip ${S.excl.includes(e)?"on":""}" data-e="${e}">${e}</button>`).join("");
+  $("dislikes").innerHTML = S.dislikes.map((d,i)=>
+    `<span class="tag">${d}<button data-di="${i}" aria-label="Smazat ${d}">×</button></span>`).join("");
+  document.querySelectorAll("#timePref button").forEach(b=>b.classList.toggle("on", b.dataset.v===S.time));
+  $("standingList").innerHTML = S.standing.map((n,i)=>
+    `<li><span>${n}</span><button class="ghost small" data-si="${i}" aria-label="Smazat poznámku">×</button></li>`).join("")
+    || `<li><span class="hint" style="margin:0">Zatím žádné.</span></li>`;
+
+  if (!S.plan){ $("rubric").hidden = true; $("shop").hidden = true; return; }
+  const rub = rubric(S.plan);
+  $("rubric").hidden = false;
+  $("rubric").innerHTML = rub.map(g=>
+    `<span class="rub ${g.met?"met":""}" title="${g.d||""}">${g.n}</span>`).join("");
+  $("plan").innerHTML = S.plan.map((id,i)=>{
+    const r = R.find(x=>x.id===id);
+    const fav = S.favs.includes(r.id);
+    return `<article class="meal ${S.locked[i]?"locked":""}" id="meal${i}">
+      <div class="meal-head">
+        <div>
+          <div class="meal-day">${SLOTS[i]}</div>
+          <h3 class="meal-name" data-open="${i}" title="Zobrazit recept">${r.n}</h3>
+          <div class="meal-meta">
+            <span>${r.t} min</span><span>${r.k}</span><span>${r.p}</span>
+            ${fav?'<span class="fav">★ oblíbené</span>':""}
+          </div>
+        </div>
+        <div class="meal-actions">
+          <button class="small" data-lock="${i}" aria-pressed="${S.locked[i]}" title="${S.locked[i]?"Odemknout":"Zamknout — reroll ho nezmění"}">${S.locked[i]?"🔒":"🔓"}</button>
+          <button class="small" data-reroll="${i}" title="Přehodit jen toto jídlo" ${S.locked[i]?"disabled":""}>↻</button>
+          <button class="small" data-pick="${i}" title="Vybrat ručně">…</button>
+        </div>
+      </div>
+      <div class="meal-detail">
+        <h4>Suroviny (na ${factor().toFixed(1).replace(".", ",")} porce)</h4>
+        <ul>${r.ing.map(([n,q,u])=>{
+          const s = q*factor()/4;
+          return `<li>${n} — ${COUNT.has(u)?Math.ceil(s)+" "+u:fmtQty(s)+" "+u}</li>`;
+        }).join("")}</ul>
+        <h4>Postup</h4>
+        <ol>${r.st.map(s=>`<li>${s}</li>`).join("")}</ol>
+        <p style="margin:10px 0 0"><button class="small" data-fav="${r.id}">${fav?"★ Odebrat z oblíbených":"☆ Přidat do oblíbených"}</button></p>
+      </div>
+    </article>`;
+  }).join("");
+  $("shop").hidden = false;
+  $("shopList").innerHTML = shopping().map((l,i)=>
+    `<li><label><input type="checkbox" checked data-shop="${i}"> ${l.txt}</label></li>`).join("");
+}
+
+// ---------- picker ----------
+let pickSlot = 0;
+function renderPicker(){
+  const q = $("pickSearch").value.toLowerCase();
+  const fx = interpret(S.standing);
+  $("pickList").innerHTML = R
+    .filter(r=>!q || recipeText(r).includes(q))
+    .map(r=>{
+      const ok = hardFilter(r, fx);
+      const fav = S.favs.includes(r.id);
+      return `<div class="pick" style="${ok?"":"opacity:.45"}">
+        <span class="n" data-choose="${r.id}">${r.n}</span>
+        <span class="m">${r.t} min · ${r.k}</span>
+        <button class="ghost small" data-fav="${r.id}" title="Oblíbené">${fav?"★":"☆"}</button>
+      </div>`;
+    }).join("") || `<p class="hint">Nic nenalezeno.</p>`;
+}
+
+// ---------- events ----------
+document.addEventListener("click", (ev)=>{
+  const b = ev.target.closest("button, .meal-name, .pick .n");
+  if (!b) return;
+  const d = b.dataset;
+  if (d.e){ S.excl = S.excl.includes(d.e) ? S.excl.filter(x=>x!==d.e) : [...S.excl, d.e]; save(); render(); }
+  else if (d.di !== undefined){ S.dislikes.splice(+d.di,1); save(); render(); }
+  else if (d.si !== undefined){ S.standing.splice(+d.si,1); save(); render(); }
+  else if (d.v){ S.time = d.v; save(); render(); }
+  else if (d.lock !== undefined){ S.locked[+d.lock] = !S.locked[+d.lock]; save(); render(); }
+  else if (d.reroll !== undefined){ rerollSlot(+d.reroll); }
+  else if (d.pick !== undefined){ pickSlot = +d.pick; $("pickSearch").value = ""; renderPicker(); $("picker").showModal(); }
+  else if (d.open !== undefined){ $("meal"+d.open).classList.toggle("open"); }
+  else if (d.choose !== undefined){ S.plan[pickSlot] = +d.choose; save(); $("picker").close(); render(); }
+  else if (d.fav !== undefined){
+    const id = +d.fav;
+    S.favs = S.favs.includes(id) ? S.favs.filter(x=>x!==id) : [...S.favs, id];
+    save(); render();
+    if ($("picker").open) renderPicker();
+  }
+});
+$("generate").addEventListener("click", generate);
+$("adults").addEventListener("input", ()=>{ S.adults = Math.max(1, +$("adults").value||1); save(); render(); });
+$("kids").addEventListener("input", ()=>{ S.kids = $("kids").value; save(); render(); });
+$("dislikeInput").addEventListener("keydown", (e)=>{
+  if ((e.key==="Enter"||e.key==="Return") && e.target.value.trim()){ S.dislikes.push(e.target.value.trim()); e.target.value=""; save(); render(); }
+});
+$("standingInput").addEventListener("keydown", (e)=>{
+  if ((e.key==="Enter"||e.key==="Return") && e.target.value.trim()){ S.standing.push(e.target.value.trim()); e.target.value=""; save(); render(); }
+});
+$("oneoffInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"||e.key==="Return") generate(); });
+$("pickSearch").addEventListener("input", renderPicker);
+$("pickClose").addEventListener("click", ()=>$("picker").close());
+// ---------- Rohlík cart via MCP connector ----------
+const MCP_SERVER = "Rohlik";
+let matchState = [];
+
+function checkedItems(){
+  return shopping().filter((_,i)=>{
+    const cb = document.querySelector(`input[data-shop="${i}"]`);
+    return !cb || cb.checked;
+  });
+}
+function stripD(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
+function parseAmount(t){
+  if (!t) return null;
+  const m = String(t).replace(",",".").match(/([\d.]+)\s*(kg|g|l|ml|ks)/i);
+  if (!m) return null;
+  let q = parseFloat(m[1]), u = m[2].toLowerCase();
+  if (u==="kg"){ q*=1000; u="g"; }
+  if (u==="l"){ q*=1000; u="ml"; }
+  return { q, u };
+}
+function unwrap(res){
+  const p = res && res.payload;
+  return (p && typeof p==="object" && "result" in p) ? p.result : p;
+}
+function mcpErrMsg(e){
+  switch(e && e.code){
+    case "server_not_connected":
+    case "selection_required":
+      return "Konektor „Rohlik“ není připojený. V claude.ai → Nastavení → Konektory přidejte vlastní konektor: název přesně Rohlik, URL https://mcp.rohlik.cz/mcp, přihlaste se — a obnovte tuto stránku.";
+    case "needs_reauth":
+      return "Přihlášení k Rohlíku vypršelo — obnovte konektor Rohlik v claude.ai → Nastavení → Konektory.";
+    case "server_unavailable":
+      return "Rohlík teď neodpovídá — zkuste to za chvíli znovu.";
+    case "tool_error":
+      return "Rohlík vrátil chybu: " + (e.message || "neznámá chyba");
+    case "not_granted": case "capability_disabled": case "capability_removed":
+      return "Stránka nemá přístup ke konektorům — otevřete ji přes claude.ai a povolte jí přístup ke konektoru Rohlik.";
+    case "blocked_by_policy": case "approval_required":
+      return "Volání konektoru blokují zásady vaší organizace.";
+    default:
+      return "Spojení s Rohlíkem selhalo" + (e && e.message ? ": " + e.message : ".");
+  }
+}
+async function mcpCall(tool, input, retryOnce){
+  try { return await window.claude.mcp.callTool(MCP_SERVER, tool, input); }
+  catch(e){
+    if (retryOnce && e && e.retryable === true){
+      await new Promise(r=>setTimeout(r, (e.retryAfterMs || 1200) + Math.random()*600));
+      return await window.claude.mcp.callTool(MCP_SERVER, tool, input);
+    }
+    throw e;
+  }
+}
+function chooseMatches(item, products){
+  const tokens = stripD(item.n).split(/\s+/).filter(w=>w.length>2);
+  const cands = products.filter(p=>p.inStock).map(p=>{
+    const pn = stripD(p.productName || "");
+    const hits = tokens.filter(t=>pn.includes(t)).length;
+    const amt = parseAmount(p.textualAmount);
+    let packages = 1, unitOk = false;
+    if ((item.u==="g" || item.u==="ml") && amt && amt.u===item.u){
+      unitOk = true; packages = Math.max(1, Math.ceil(item.q / amt.q));
+    } else if (COUNT.has(item.u) && amt && amt.u==="ks"){
+      unitOk = true; packages = Math.max(1, Math.ceil(item.q / amt.q));
+    }
+    return { p, hits, packages, cost: packages*(p.price||0), unitOk };
+  });
+  cands.sort((a,b)=> b.hits-a.hits || a.packages-b.packages || a.cost-b.cost);
+  return cands;
+}
+function renderReview(){
+  const rows = matchState.map((m,i)=>{
+    if (!m.cands.length){
+      return `<div class="match"><span></span>
+        <span>${m.item.n} — <i>nic nenalezeno, objednejte ručně</i></span><span></span><span></span>
+        <span class="need">potřeba: ${m.item.txt}</span></div>`;
+    }
+    const c = m.cands[m.sel];
+    const opts = m.cands.slice(0,5).map((x,j)=>
+      `<option value="${j}" ${j===m.sel?"selected":""}>${x.p.productName} · ${x.p.textualAmount} · ${x.p.price} Kč</option>`).join("");
+    return `<div class="match">
+      <input type="checkbox" data-minc="${i}" ${m.include?"checked":""} aria-label="Koupit ${m.item.n}">
+      <select data-msel="${i}">${opts}</select>
+      <input type="number" min="1" max="50" value="${m.qty}" data-mqty="${i}" aria-label="Počet balení">
+      <span>${(c.p.price*m.qty).toFixed(1)} Kč ${c.hits && c.unitOk ? "" : '<span class="badge">zkontrolovat</span>'}</span>
+      <span class="need">potřeba: ${m.item.txt}</span>
+    </div>`;
+  }).join("");
+  const total = matchState.reduce((s,m)=> s + (m.include && m.cands.length ? m.cands[m.sel].p.price*m.qty : 0), 0);
+  $("cartFlow").innerHTML = rows + `<div class="cart-total">
+    <button class="primary" id="confirmCart">Přidat do košíku — ${total.toFixed(0)} Kč</button>
+    <span class="hint" style="margin:0">Ceny jsou orientační; platíte až na rohlik.cz.</span>
+  </div>`;
+  $("confirmCart").addEventListener("click", confirmCart);
+  $("cartFlow").querySelectorAll("[data-msel]").forEach(el=>el.addEventListener("change", ()=>{
+    const m = matchState[+el.dataset.msel]; m.sel = +el.value; m.qty = m.cands[m.sel].packages; renderReview();
+  }));
+  $("cartFlow").querySelectorAll("[data-mqty]").forEach(el=>el.addEventListener("change", ()=>{
+    matchState[+el.dataset.mqty].qty = Math.max(1, +el.value||1); renderReview();
+  }));
+  $("cartFlow").querySelectorAll("[data-minc]").forEach(el=>el.addEventListener("change", ()=>{
+    matchState[+el.dataset.minc].include = el.checked; renderReview();
+  }));
+}
+async function confirmCart(){
+  const picks = matchState.filter(m=>m.include && m.cands.length)
+    .map(m=>({ product_id: m.cands[m.sel].p.productId, quantity: m.qty }));
+  if (!picks.length){ $("cartMsg").textContent = "Nic není vybráno."; return; }
+  $("confirmCart").disabled = true;
+  $("cartMsg").textContent = "Přidávám do košíku…";
+  try {
+    const res = unwrap(await mcpCall("add_items_to_cart", { items: picks }, false));
+    const failed = (res && res.items_failed_to_add) || [];
+    const okCount = picks.length - failed.length;
+    $("cartFlow").innerHTML = "";
+    $("cartMsg").innerHTML = `V košíku je ${okCount} z ${picks.length} položek` +
+      (failed.length ? ` (nepřidáno: ${failed.length})` : "") +
+      ` — dokončete nákup na <a href="https://www.rohlik.cz" target="_blank" rel="noopener">rohlik.cz</a>.`;
+  } catch(e){
+    $("cartMsg").textContent = mcpErrMsg(e) + " Pokud jste klikli víckrát, zkontrolujte košík na rohlik.cz — položky mohly být přidány.";
+    const btn = $("confirmCart"); if (btn) btn.disabled = false;
+  }
+}
+$("cartBtn").addEventListener("click", async ()=>{
+  const items = checkedItems();
+  if (!items.length){ $("cartMsg").textContent = "Nic není zaškrtnuto."; return; }
+  if (!window.claude || !window.claude.mcp){
+    $("cartMsg").textContent = "Přímé odeslání funguje jen na claude.ai s konektorem „Rohlik“ (URL https://mcp.rohlik.cz/mcp). Zatím použijte „Zkopírovat pro Clauda“.";
+    return;
+  }
+  $("cartBtn").disabled = true;
+  $("cartFlow").innerHTML = "";
+  try {
+    matchState = [];
+    for (let i=0; i<items.length; i+=4){
+      const chunk = items.slice(i, i+4);
+      $("cartMsg").textContent = `Hledám produkty… ${Math.min(i+4, items.length)}/${items.length}`;
+      const data = unwrap(await mcpCall("batch_search_products",
+        { queries: chunk.map(it=>({ keyword: it.n, limit: 5 })) }, true));
+      chunk.forEach((it,j)=>{
+        const cands = chooseMatches(it, (data && data.results && data.results[j] && data.results[j].products) || []);
+        matchState.push({ item: it, cands, sel: 0, qty: cands.length ? cands[0].packages : 1, include: !!cands.length });
+      });
+    }
+    $("cartMsg").textContent = "Zkontrolujte návrh a potvrďte:";
+    renderReview();
+  } catch(e){
+    $("cartMsg").textContent = mcpErrMsg(e);
+  } finally {
+    $("cartBtn").disabled = false;
+  }
+});
+$("copyBtn").addEventListener("click", async ()=>{
+  const items = checkedItems();
+  if (!items.length){ $("cartMsg").textContent = "Nic není zaškrtnuto."; return; }
+  const meals = S.plan.map(id=>R.find(r=>r.id===id).n);
+  const text = "Naplň mi prosím košík na rohlik.cz podle tohoto seznamu (kupuj celá balení):\n"
+    + items.map(l=>"- "+l.txt).join("\n")
+    + "\n\nJídelníček týdne: " + meals.join("; ");
+  try {
+    await navigator.clipboard.writeText(text);
+    $("cartMsg").textContent = "Objednávka zkopírována — vložte ji Claudovi.";
+  } catch {
+    window.prompt("Zkopírujte objednávku ručně:", text);
+  }
+});
+
+$("adults").value = S.adults; $("kids").value = S.kids;
+render();
+</script>
+
+</body>
+</html>
