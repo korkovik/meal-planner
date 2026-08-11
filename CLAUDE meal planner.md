@@ -113,9 +113,14 @@ for a fresh session first.
 
 ## The generator (inside `planovac.html`)
 
-- `R` — built-in recipe pool. `S.userRecipes` — user's own. `S.extRecipes` — fetched from
-  Rohlík's recipe DB. `RALL()` returns all three; **always use `RALL()`, never `R`**, when
-  looking recipes up.
+- `R` — built-in generic pool. `TOM` — **Tomáš's family recipes** (the ones the family really
+  cooks; each carries `tom: true`). `S.userRecipes` — added in the UI. `S.extRecipes` — fetched
+  from Rohlík's recipe DB. `RALL()` returns all four; **always use `RALL()`, never `R`**, when
+  looking recipes up — a plan can reference any of them.
+- **The „Tomášovy recepty" toggle** (`S.useTomas`, default on): on = family recipes get a +3
+  score boost (~90 % of generated meals); off = `hardFilter` drops them from generation entirely
+  while manual pick still lists them. Family recipes tagged with a cuisine outside the four
+  target groups (francouzská, americká, blízkovýchodní, severská) are effectively picker-only.
 - **Cuisine shares are sampled, not scored**: each slot draws a group from `TARGETS`
   (CZ+SK 60 %, Indian 20 %, Italian 10 %, ES+MX 10 %). Changing the mix means changing
   `TARGETS`/`GROUPS`, not the score weights. Cuisines outside the groups never generate —
