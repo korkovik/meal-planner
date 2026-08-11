@@ -171,6 +171,15 @@
       </div>
 
       <div class="panel">
+        <p class="label">Tomášovy recepty</p>
+        <div class="seg" id="tomToggle">
+          <button data-tom="1">Preferovat</button>
+          <button data-tom="0">Nepoužívat</button>
+        </div>
+        <p class="hint" id="tomHint"></p>
+      </div>
+
+      <div class="panel">
         <p class="label">Vlastní recepty</p>
         <p class="hint" style="margin:0 0 8px" id="userRecCount"></p>
         <button id="addRecipeBtn">Přidat vlastní recept</button>
@@ -206,7 +215,7 @@
         do vašeho košíku (vyžaduje konektor „Rohlik“ v claude.ai). Platba zůstává na vás na rohlik.cz.</p>
       </details>
       <footer class="note">
-        Prototyp: recepty pochází z vestavěné ukázkové databáze a poznámky vyhodnocuje jednoduchý
+        Prototyp: recepty pochází z rodinné sbírky a vestavěné databáze a poznámky vyhodnocuje jednoduchý
         interpret klíčových slov. Ve finální aplikaci obojí zajišťuje AI nad rostoucí databází receptů.
       </footer>
     </section>
@@ -507,15 +516,357 @@ const R = [
    st:["Nudličky masa zprudka orestujte s paprikami a cibulí.","Podávejte v tortillách s limetkou."]},
 ];
 
+// ---------- Tomášovy rodinné recepty ----------
+// Recepty, které rodina opravdu vaří. Přepínač „Tomášovy recepty“ je buď
+// upřednostní (zapnuto, výchozí), nebo je z generování úplně vynechá.
+// Množství jsou přepočtená na 4 dospělé porce jako u ostatních receptů.
+const TOM = [
+  {id:200,n:"Moravský vrabec s červeným zelím a knedlíkem",t:120,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","lepek"],
+   ing:[["vepřová krkovice",900,"g"],["cibule",2,"ks"],["česnek",4,"stroužky"],["kmín celý",10,"g"],["sádlo",40,"g"],["vepřový vývar",500,"ml"],["rajčatový protlak",20,"g"],["bobkový list",2,"ks"],["hladká mouka",20,"g"],["červené zelí",700,"g"],["jablko",1,"ks"],["ocet",40,"ml"],["houskový knedlík",1,"balení"]],
+   st:["Krkovici nakrájej na kostky 3–4 cm, promni s prolisovaným česnekem, kmínem, solí a pepřem a nech aspoň hodinu odležet (klidně přes noc).",
+       "V pekáči rozehřej sádlo a maso zprudka opeč ze všech stran dohněda — čím tmavší kůrka, tím lepší základ omáčky.",
+       "Přidej nahrubo krájenou cibuli, nech zezlátnout až zhnědnout, vmíchej protlak a chvilku restuj.",
+       "Podlij vývarem, přidej bobkový list, přiklop a peč v troubě na 160 °C 1,5–2 hodiny doměkka.",
+       "Maso vyndej. Lžičku cukru rozpusť dozlatova, zapraš moukou, krátce osmaž a za míchání přilij výpek. Provař dohusta, proceď a vrať maso.",
+       "Zelí: na sádle zesklovatěj cibuli s lžící cukru, přidej krájené zelí, nastrouhané jablko, kmín, ocet a trochu vody. Přikryté duš 40–50 minut a dolaď sladkokyselou chuť.",
+       "Místo zelí se hodí i špenát: na másle osmaž cibulku s česnekem, zapraš moukou, zalij smetanou a vmíchej spařený špenát s muškátem."]},
+  {id:201,n:"Babiččiny francouzské brambory",t:75,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","laktóza","vejce"],
+   ing:[["pevné brambory",1000,"g"],["uzené maso (bůček nebo krkovice)",250,"g"],["vejce",7,"ks"],["cibule",1,"ks"],["česnek",2,"stroužky"],["zakysaná smetana",250,"ml"],["smetana ke šlehání",150,"ml"],["strouhaný zralý sýr",100,"g"],["petrželka",1,"svazek"],["máslo",20,"g"]],
+   st:["Brambory uvař ve slupce doměkka, ale ať zůstanou pevné (20–25 min). Oloupej a nakrájej na kostičky 1,5 cm. Čtyři vejce uvař natvrdo.",
+       "Uzené nakrájej na kostičky a na suché pánvi vyškvař dozlatova. Přidej sekanou cibuli, orestuj doměkka, na konci vmíchej prolisovaný česnek.",
+       "V míse opatrně smíchej brambory, výpek s uzeným a nahrubo sekaná vejce natvrdo. Ochuť solí, pepřem a petrželkou.",
+       "Rozšlehej zakysanou i sladkou smetanu se třemi vejci, vmíchej polovinu sýra a špetku muškátu.",
+       "Mísu vymaž máslem, vsyp směs, zalij zálivkou a posyp zbylým sýrem. Peč na 200 °C 35–40 minut. Nech 5 minut odpočinout a podávej s kyselou okurkou."]},
+  {id:202,n:"Kuřecí curry s kasoori methi a kardamomem",t:45,k:"indická",p:"kuře",wg:0,fr:0,veg:0,obs:["laktóza"],
+   ing:[["kuřecí prsa",400,"g"],["ghí",30,"ml"],["zelený kardamom",2,"ks"],["římský kmín mletý",5,"g"],["cibule",1,"ks"],["česnek",2,"stroužky"],["passata",250,"ml"],["kokosové mléko",150,"ml"],["smetana ke šlehání",50,"ml"],["máslo",15,"g"],["kasoori methi",5,"g"],["garam masala",5,"g"],["kurkuma",3,"g"]],
+   st:["Kuře nakrájej na kostky a promíchej s kurkumou, garam masalou, špetkou zázvoru a soli. Nech 30–60 minut v lednici.",
+       "Rozehřej ghí, přidej rozmáčknutý kardamom a kmín a nech rozvonět (45 s). Přidej cibuli a opékej do hlubokého zlatova (8 min), pak krátce česnek.",
+       "Vlož marinované kuře a opeč dozlatova ze všech stran (6 min).",
+       "Vlij passatu a kokosové mléko, vař odkryté 10 minut. Vmíchej smetanu a nech krátce probublat.",
+       "Odstav, vmíchej máslo, rozetři mezi prsty kasoori methi a přidej špetku garam masaly. Ochutnej a dosol."]},
+  {id:203,n:"Hovězí pečeně s pórkem a demi-glace",t:180,k:"česká",p:"hovězí",wg:0,fr:0,veg:1,obs:["hovězí"],
+   ing:[["hovězí zadní vcelku",900,"g"],["pórek",1,"ks"],["mrkev",2,"ks"],["petržel kořen",1,"ks"],["demi-glace",50,"g"],["hovězí vývar",600,"ml"],["olej",40,"ml"],["bobkový list",1,"ks"],["tymián",3,"snítky"],["brambory",800,"g"]],
+   st:["Maso osuš, osol a v těžkém pekáči na tuku zprudka opeč ze všech stran dozlatova. Vyndej stranou.",
+       "Do stejné nádoby dej pórek na kolečka a mrkev s petrželí na kousky, krátce orestuj do zesklovatění — nepřipálit.",
+       "Podlij trochou vývaru, seškrábni přípečky ze dna a vrať maso k zelenině.",
+       "Demi-glace rozpusť v horkém vývaru, vlij k masu do třetiny výšky, přidej bobkový list a tymián.",
+       "Přiklop a peč na 150–160 °C 2–3 hodiny doměkka, občas dolij trochu tekutiny.",
+       "Maso nech odpočinout pod alobalem. Omáčku rozmixuj dohladka, dosol, případně zredukuj a mimo oheň zašlehej kousek studeného másla. Krájej přes vlákno, podávej s bramborem."]},
+  {id:204,n:"Chicken tikka masala",t:60,k:"indická",p:"kuře",wg:0,fr:0,veg:0,obs:["laktóza"],
+   ing:[["kuřecí prsa",500,"g"],["bílý jogurt",150,"g"],["česnek",2,"stroužky"],["zázvor",20,"g"],["garam masala",10,"g"],["kurkuma",5,"g"],["krájená rajčata",800,"g"],["červená cibule",2,"ks"],["smetana ke šlehání",200,"ml"],["máslo",30,"g"],["římský kmín mletý",5,"g"],["mletý koriandr",5,"g"],["sladká paprika",5,"g"],["rýže basmati",320,"g"]],
+   st:["Marináda: kuřecí kostky smíchej s jogurtem, česnekem, strouhaným zázvorem, garam masalou a kurkumou. Zprudka osmahni na pánvi a dej stranou.",
+       "Omáčka: cibuli se zázvorem a česnekem zpěň, přidej kmín, koriandr a papriku, pak rajčata a vař 15 minut.",
+       "Vrať maso do omáčky a dovař 10 minut. Přidej smetanu a lžíci másla a nech rozpustit.",
+       "Podávej s rýží basmati; chuť se ještě zlepší, když jídlo den odpočine v lednici."]},
+  {id:205,n:"Kuřecí tikka masala de kořka",t:45,k:"indická",p:"kuře",wg:0,fr:0,veg:0,obs:["laktóza"],
+   ing:[["kuřecí prsa",500,"g"],["cibule",2,"ks"],["česnek",3,"stroužky"],["zázvor",25,"g"],["loupaná rajčata",400,"g"],["zakysaná smetana",200,"g"],["bílý jogurt",150,"g"],["máslo",40,"g"],["garam masala",10,"g"],["kurkuma",5,"g"],["římský kmín mletý",5,"g"],["mletý koriandr",5,"g"],["rýže basmati",320,"g"]],
+   st:["Na másle smaž nakrájenou cibuli, až zesklovatí, přidej kuřecí kousky, prolisovaný zázvor a česnek.",
+       "Ke konci smažení přisyp všechno sypké koření a špetku chilli.",
+       "Vlij plechovku rajčat, přidej jogurt a zakysanou smetanu a nech prohřát.",
+       "Servíruj s basmati rýží."]},
+  {id:206,n:"Jemný kadai paneer",t:35,k:"indická",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["paneer",250,"g"],["cibule",1,"ks"],["zelená paprika",1,"ks"],["rajčata",2,"ks"],["zázvor",20,"g"],["česnek",2,"stroužky"],["mletý koriandr",12,"g"],["římský kmín mletý",5,"g"],["kurkuma",3,"g"],["sladká paprika",5,"g"],["smetana ke šlehání",50,"ml"],["máslo",20,"g"],["rýže basmati",320,"g"]],
+   st:["Koření: v hmoždíři smíchej mletý koriandr, římský kmín a špetku pepře. Chilli ani pálivou papriku nedávej.",
+       "Kostky cibule a papriky krátce orestuj (2 min) a dej stranou.",
+       "Na másle zpěň zázvor s česnekem, přidej rozmixovaná rajčata, sůl, kurkumu a sladkou papriku. Vař, dokud směs nezhoustne (5 min).",
+       "Vmíchej připravenou směs koření, vrať zeleninu, přidej kostky paneeru, podlij trochou vody a povař 5 minut.",
+       "Vypni plamen, vmíchej smetanu a lžičku cukru. Podávej s rýží."]},
+  {id:207,n:"Kiš de Babočka",t:90,k:"francouzská",p:"sýr",wg:0,fr:0,veg:1,obs:["lepek","laktóza","vejce"],
+   ing:[["hladká mouka",250,"g"],["máslo",125,"g"],["vejce",3,"ks"],["cibule",1,"ks"],["česnek",3,"stroužky"],["pórek",1,"ks"],["cuketa",1,"ks"],["žampiony",200,"g"],["jarní cibulka",1,"svazek"],["petrželka",1,"svazek"],["kysaná smetana",200,"ml"],["strouhaný sýr",150,"g"]],
+   st:["Z mouky, másla, jednoho vejce a špetky soli vypracuj těsto a dej na 30 minut do lednice.",
+       "Zeleninu nakrájej, orestuj, dochuť solí, pepřem, sladkou paprikou a oreganem a nech vychladnout.",
+       "Smetanu smíchej se dvěma vejci, přidej zeleninu a sýr.",
+       "Těsto vyválej do formy, propíchej vidličkou a předpeč 12–15 minut na 180 °C.",
+       "Nalij náplň a peč dalších 30–35 minut na 180 °C."]},
+  {id:208,n:"Zelníky",t:60,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","lepek","vejce"],
+   ing:[["hladká mouka",300,"g"],["škvarky",150,"g"],["kysané zelí",200,"g"],["vejce",2,"ks"],["sádlo",50,"g"],["droždí",1,"balení"],["kmín drcený",5,"g"]],
+   st:["Zelí nakrájej najemno, škvarky posekej. Vše propracuj s moukou, vejcem, sádlem, droždím, solí, pepřem, kmínem a špetkou cukru v těsto.",
+       "Vyválej placku asi 0,7 cm silnou a vykrájej kolečka.",
+       "Potři rozšlehaným vejcem a upeč dozlatova.",
+       "Hotové zelníky ještě horké potři sádlem."]},
+  {id:209,n:"Šafránové rizoto",t:40,k:"italská",p:"sýr",wg:0,fr:0,veg:0,obs:["laktóza"],
+   ing:[["rýže arborio",200,"g"],["šalotka",2,"ks"],["olej",15,"ml"],["šafrán",1,"balení"],["suché bílé víno",150,"ml"],["máslo",60,"g"],["parmazán",50,"g"],["zeleninový vývar",1000,"ml"]],
+   st:["V hlubší pánvi rozehřej olej, nech zesklovatět šalotku, přidej rýži a ze všech stran orestuj.",
+       "Zalij vínem a nech odpařit. Osol, opepři.",
+       "Zalévej horkým vývarem tak, aby byla rýže ponořená, přidej šafrán a zvolna vař za častého míchání. Čím déle vaříš, tím menší dávky vývaru přidávej.",
+       "Až je rýže al dente a vývar odpařený, sundej z plotny, vmíchej máslo, pak parmazán a ihned servíruj.",
+       "Skvěle se hodí ke krevetám opečeným zprudka na rozpáleném oleji."]},
+  {id:210,n:"Rib eye steaky s tortillami a limetkovou omáčkou",t:40,k:"mexická",p:"hovězí",wg:0,fr:0,veg:0,obs:["hovězí","lepek","sója"],
+   ing:[["rib eye steak",800,"g"],["vločková sůl",1,"balení"],["demi-glace",50,"g"],["sweet chilli omáčka",60,"ml"],["sójová omáčka",40,"ml"],["limetka",1,"ks"],["tortilly",8,"ks"],["koriandr",1,"svazek"],["skořice",2,"g"]],
+   st:["Steaky nech aklimatizovat, osuš, opepři a grilluj na medium — hlavně nepřetáhnout. Kdo si nevěří, ať použije teploměr.",
+       "Hotové maso osol vločkovou solí a nech odpočinout.",
+       "Omáčka: demi-glace rozpusť, přidej sweet chilli, sójovku, špetku skořice, cukr, pepř a šťávu z limetky. Poměry laď podle chuti.",
+       "Maso nakrájej na plátky a podávej v tortillách s omáčkou a čerstvým koriandrem."]},
+  {id:211,n:"Panenka plněná slaninou a sušenými rajčaty",t:50,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","laktóza"],
+   ing:[["vepřová panenka",700,"g"],["anglická slanina",150,"g"],["sušená rajčata",100,"g"],["tvrdý sýr",150,"g"],["česnek",4,"stroužky"],["brambory",800,"g"]],
+   st:["Panenku rozřízni po délce na třetinky tak, aby šla rozevřít, případně prošpikuj špekem.",
+       "Osol a potři prolisovaným česnekem.",
+       "Do mezery vlož předsmaženou slaninu, sušená rajčata a plátky sýra, svaž nebo sepni špejlemi.",
+       "Peč 30 minut na 190 °C, podávej s pečenými bramborami."]},
+  {id:212,n:"Zapečený lilek s parmazánem a mozzarellou",t:90,k:"italská",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["lilek",1300,"g"],["loupaná rajčata",800,"g"],["mozzarella",350,"g"],["parmazán",80,"g"],["olivový olej",50,"ml"],["bazalka",1,"svazek"],["máslo",20,"g"]],
+   st:["Lilky nakrájej podélně na plátky 0,7–1 cm, osol a nech 45–60 minut vypotit. Opláchni a velmi dobře osuš.",
+       "Plátky potři olejem a peč na 220 °C 20–25 minut, v půlce otoč.",
+       "Rajčata vař 25–35 minut do hodně husté omáčky. Mozzarellu nakrájej a nech aspoň 30 minut okapat.",
+       "Nádobu lehce vymaž a skládej úsporné vrstvy: lilek, rajčata, mozzarella, bazalka, hojně parmazán. Nepřelévat moc omáčkou.",
+       "Peč 25–35 minut na 200–210 °C. Když vrch rychle hnědne, stáhni teplotu. Před krájením nech 20 minut stát."]},
+  {id:213,n:"Vepřové na pórku",t:50,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","laktóza","lepek"],
+   ing:[["vepřové maso",600,"g"],["pórek",1,"ks"],["cibule",4,"ks"],["česnek",6,"stroužky"],["kysaná smetana",200,"g"],["hladká mouka",20,"g"],["sádlo",30,"g"],["mléko",100,"ml"],["těstoviny",400,"g"]],
+   st:["Cibuli nakrájej najemno, česnek prolisuj, pórek nakrájej na kolečka. Maso nakrájej na plátky nebo kostky.",
+       "Na sádle zpěň cibuli a orestuj na ní maso.",
+       "Přidej pórek a česnek, osol, opepři, přidej trochu kmínu a sladké papriky, podlij vodou a duš doměkka.",
+       "V mléce rozkvedlej zakysanou smetanu s moukou, nalij na maso, zamíchej a nech provařit. Podávej s těstovinami nebo rýží."]},
+  {id:214,n:"Masíčko v těstíčku",t:30,k:"česká",p:"vepřové",wg:0,fr:1,veg:0,obs:["vepřové","vejce"],
+   ing:[["vepřová krkovice",1000,"g"],["olej",100,"ml"],["vejce",2,"ks"],["solamyl",60,"g"],["česnek",4,"stroužky"],["sladká paprika",10,"g"],["worcesterská omáčka",20,"ml"],["kari",5,"g"],["majoránka",5,"g"]],
+   st:["Krkovici nakrájej na plátky.",
+       "Olej, sůl, papriku, worcester, kari, vejce, prolisovaný česnek a majoránku rozšlehej a doplň solamylem.",
+       "Maso v marinádě nech odležet v lednici (klidně až 4 dny).",
+       "Peč nebo smaž 7 minut po každé straně."]},
+  {id:215,n:"Šunkofleky s uzeným",t:60,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","lepek","laktóza","vejce"],
+   ing:[["fleky",450,"g"],["uzená krkovice",250,"g"],["cibule",1,"ks"],["česnek",5,"stroužky"],["vejce",5,"ks"],["smetana ke šlehání",200,"ml"],["mléko",150,"ml"],["parmazán",80,"g"],["petrželka",1,"svazek"],["dijonská hořčice",10,"g"],["strouhanka",30,"g"]],
+   st:["Troubu rozehřej na 170 °C, pekáč vymaž sádlem a vysyp strouhankou.",
+       "Fleky uvař v osolené vodě do poloměkka (asi 4 min) a slij.",
+       "Uzené nakrájej na kostičky 0,5 cm a osmaž na cibulce až lehce zkaramelizuje — to dělá tu hloubku chuti.",
+       "Vejce rozmíchej se smetanou, mlékem a hořčicí. Fleky smíchej s uzeným, petrželí, česnekem (část přidej syrový až teď), parmazánem, solí a pepřem a zalij vaječnou směsí.",
+       "Peč 35 minut, pak nech 15 minut dojít ve vypnuté troubě. Podávej s nakládanou okurkou."]},
+  {id:216,n:"Masosýrové karbanátky maminčiny",t:40,k:"česká",p:"vepřové",wg:0,fr:1,veg:0,obs:["vepřové","laktóza"],
+   ing:[["mleté vepřové (libový bůček)",800,"g"],["gouda",400,"g"],["mléko",200,"ml"],["olej",100,"ml"]],
+   st:["Na 1 kg masa počítej zhruba půl kila sýra — nastrouhej ho a smíchej s mletým masem.",
+       "Přidej sůl a sklenici mléka. Nic jiného tam nepatří.",
+       "Ideálně nech směs den odležet v lednici, není to ale podmínka.",
+       "Tvaruj karbanátky a smaž z obou stran dozlatova."]},
+  {id:217,n:"Babočkovy špízy",t:40,k:"česká",p:"kuře",wg:0,fr:0,veg:1,obs:["vepřové","laktóza"],
+   ing:[["kuřecí prsa",600,"g"],["paprika",2,"ks"],["sušená rajčata",100,"g"],["cibule",2,"ks"],["anglická slanina",150,"g"],["cuketa",1,"ks"],["grilovací koření",15,"g"],["strouhaný parmazán",80,"g"]],
+   st:["Kousky masa posyp grilovacím kořením.",
+       "Obal je ve strouhaném parmazánu.",
+       "Napichuj na špejle a prokládej sušeným rajčetem, cuketou, slaninou, cibulí a paprikou.",
+       "Griluj nebo peč dozlatova, občas otoč."]},
+  {id:218,n:"Pulled pork",t:300,k:"americká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","lepek"],
+   ing:[["vepřová plec bez kosti",1800,"g"],["hnědý cukr",100,"g"],["uzená paprika",15,"g"],["česnekový prášek",5,"g"],["cibulový prášek",5,"g"],["římský kmín mletý",5,"g"],["ležák",330,"ml"],["kečup",350,"g"],["jablečný ocet",80,"ml"],["dijonská hořčice",120,"g"],["worcesterská omáčka",30,"ml"],["burgerové housky",8,"ks"]],
+   st:["Smíchej hnědý cukr, sůl, uzenou papriku, česnekový a cibulový prášek, kmín a hodně pepře a masem to důkladně promni.",
+       "Maso zprudka opeč na oleji ze všech stran, pak vlož do pekáče a podlij pivem.",
+       "Přiklop a peč na 150 °C 4–5 hodin, dokud se maso nedá trhat vidličkou.",
+       "Z kečupu, octa, hořčice, hnědého cukru a worcesteru svař omáčku.",
+       "Maso roztrhej vidličkami, smíchej s omáčkou a výpekem a podávej v houskách."]},
+  {id:219,n:"Losos v bylinkové krustě",t:35,k:"česká",p:"ryba",tuc:1,wg:0,fr:0,veg:1,obs:["ryby","laktóza"],
+   ing:[["losos filet",700,"g"],["máslo",80,"g"],["kopr",1,"svazek"],["petrželka",1,"svazek"],["koriandr",1,"svazek"],["mletá hořčice",5,"g"],["šafrán",1,"balení"],["brambory",800,"g"],["citron",1,"ks"]],
+   st:["Bylinky nasekej najemno a smíchej se solí, pepřem, šafránem a mletou hořčicí.",
+       "Lososa osuš, potři máslem a obal v bylinkové směsi.",
+       "Peč 12–15 minut na 200 °C, ať zůstane uvnitř šťavnatý.",
+       "Podávej s vařeným bramborem, citronem a zbylým bylinkovým máslem."]},
+  {id:220,n:"Kuřecí placičky de Babočka",t:30,k:"česká",p:"kuře",wg:0,fr:1,veg:0,obs:["vejce"],
+   ing:[["kuřecí prsa",500,"g"],["česnek",3,"stroužky"],["hořčice",20,"g"],["solamyl",30,"g"],["vejce",2,"ks"],["provensálské koření",5,"g"],["olej",100,"ml"]],
+   st:["Kuřecí maso nakrájej na malé kostičky.",
+       "Vejce, hořčici, prolisovaný česnek, solamyl, sůl, pepř a provensálské koření ušlehej dohromady.",
+       "Přidej maso a promíchej.",
+       "Na oleji smaž — co lžíce, to jedna placička."]},
+  {id:221,n:"Bramborový salát s uzeninou",t:60,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","vejce"],
+   ing:[["brambory",1000,"g"],["mrkev",2,"ks"],["celer",1,"ks"],["petržel kořen",1,"ks"],["nakládané okurky",4,"ks"],["majonéza",200,"g"],["hořčice",30,"g"],["vejce",4,"ks"],["cibule",1,"ks"],["uzenina",200,"g"],["petrželka",1,"svazek"]],
+   st:["Brambory uvař ve slupce, oloupej a prožeň struhadlem nebo nakrájej na kostičky.",
+       "Mrkev, celer a petržel nakrájej na kostičky a vař 10 minut v láku s octem, solí, pepřem, bobkovým listem a novým kořením.",
+       "Smíchej brambory se zeleninou, přidej nakrájené okurky a trochu nálevu, majonézu a hořčici.",
+       "Vmíchej uzeninu, vejce natvrdo na kostičky, cibulku najemno a petrželovou nať."]},
+  {id:222,n:"Frittata de kořka",t:35,k:"italská",p:"vejce",wg:0,fr:0,veg:1,obs:["vejce","laktóza","vepřové"],
+   ing:[["vejce",9,"ks"],["pórek",1,"ks"],["šalotka",2,"ks"],["cuketa",1,"ks"],["slanina",100,"g"],["kozí sýr",100,"g"],["parmazán",200,"g"],["paprika",2,"ks"],["hořčice",5,"g"]],
+   st:["Slaninu vyškvař, přidej nakrájený pórek, šalotku, cuketu a papriku a orestuj doměkka.",
+       "Vejce rozšlehej s hořčicí, solí a pepřem a nastrouhaným parmazánem.",
+       "Zalij zeleninu vejci, chvíli smaž na pánvi.",
+       "Posyp kozím sýrem a dopeč v troubě na 180 °C, dokud frittata nezatuhne."]},
+  {id:223,n:"Pečené kuře na másle",t:80,k:"česká",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kuře",1600,"g"],["máslo",100,"g"],["kmín celý",10,"g"],["sladká paprika",5,"g"],["brambory",800,"g"],["mrkev",3,"ks"]],
+   st:["Kuře osol, opepři, posyp kmínem a paprikou a potři měkkým máslem i pod kůží.",
+       "Konce stehen spoj špejlí, aby kuře drželo tvar.",
+       "Peč na 190 °C asi hodinu, průběžně přelévej výpekem.",
+       "Poslední půlhodinu peč na bramborách a mrkvi, ať se propečou ve výpeku."]},
+  {id:224,n:"Sytá zeleninová polévka s fazolemi",t:70,k:"česká",p:"luštěniny",wg:0,fr:0,veg:1,obs:[],
+   ing:[["dýně",500,"g"],["mrkev",3,"ks"],["celer",1,"ks"],["petržel kořen",1,"ks"],["cibule",2,"ks"],["bílé fazole",400,"g"],["zázvor",20,"g"],["citron",1,"ks"],["sladká paprika",5,"g"],["římský kmín mletý",5,"g"],["zeleninový vývar",1000,"ml"],["olej",40,"ml"]],
+   st:["Dýni, mrkev, celer, petržel a cibuli nakrájej na velké kousky a peč v troubě asi hodinu, ať to místy zezlátne.",
+       "Na oleji krátce orestuj nasekaný zázvor, citronovou kůru, mletou papriku, římský kmín a špetku oregana.",
+       "Smíchej s pečenou zeleninou, zalij vývarem a přidej fazole, aby byla polévka hustší a sytější.",
+       "Rozmixuj dohladka a dochuť."]},
+  {id:225,n:"Těstoviny s boloňskou",t:50,k:"italská",p:"hovězí",wg:0,fr:0,veg:1,obs:["hovězí","lepek","laktóza"],
+   ing:[["mleté maso míchané",500,"g"],["cibule",1,"ks"],["loupaná rajčata",400,"g"],["rajčatový protlak",70,"g"],["česnek",2,"stroužky"],["červené víno",150,"ml"],["bobkový list",2,"ks"],["bazalka",1,"svazek"],["smetana ke šlehání",100,"ml"],["těstoviny",400,"g"],["parmazán",60,"g"],["olej",30,"ml"]],
+   st:["Na oleji osmaž cibuli do sklovata, případně přidej nastrouhanou mrkev a celer a pár minut míchej.",
+       "Přidej maso a vařečkou drť hrudky, opékej asi 5 minut. Až maso zhnědne, zalij vínem a zprudka přiveď k varu.",
+       "Vmíchej rajčata, protlak, sůl, pepř a polovinu bazalky. Přidej prolisovaný česnek, bobkový list a smetanu a duš 30 minut.",
+       "Podávej s uvařenými těstovinami, zbylou bazalkou a parmazánem."]},
+  {id:226,n:"Lasagne de kořka",t:90,k:"italská",p:"hovězí",wg:0,fr:0,veg:1,obs:["hovězí","lepek","laktóza"],
+   ing:[["mleté hovězí",500,"g"],["cibule",1,"ks"],["česnek",1,"stroužky"],["loupaná rajčata",250,"g"],["rajčatový protlak",50,"g"],["červené víno",60,"ml"],["lasagne pláty",12,"ks"],["máslo",50,"g"],["hladká mouka",50,"g"],["mléko",600,"ml"],["čedar",125,"g"],["olivy",50,"g"],["olivový olej",15,"ml"]],
+   st:["Boloňská: na oleji osmaž najemno nasekanou cibuli a prolisovaný česnek. Vmíchej maso, po zhnědnutí přidej rajčata, protlak, víno, sušenou bazalku, sůl a pepř. Přiveď k varu a povař 20–25 minut.",
+       "Bešamel: rozpusť máslo, vmíchej mouku a minutu osmaž. Postupně přilévej mléko a za stálého míchání přiveď k varu, dokud omáčka nezhoustne. Přidej muškátový oříšek a sýr.",
+       "Do pekáčku dej vrstvu boloňské, na to sýrovou omáčku, pak lasagne. Vrstvy opakuj a zakonči boloňskou a sýrovou omáčkou.",
+       "Peč na 180 °C 30–35 minut do mírného zhnědnutí."]},
+  {id:227,n:"Guláš de Bohdan",t:240,k:"česká",p:"hovězí",wg:0,fr:0,veg:1,obs:["hovězí","vepřové"],
+   ing:[["hovězí kližka",1000,"g"],["cibule",1000,"g"],["špek",150,"g"],["mrkev",2,"ks"],["petržel kořen",1,"ks"],["celer",1,"ks"],["pórek",1,"ks"],["česnek",5,"stroužky"],["sladká paprika",30,"g"],["rajčatový protlak",70,"g"],["červené víno",200,"ml"],["křen",50,"g"],["chilli",5,"g"]],
+   st:["Cibule ber stejně jako masa, nakrájenou nahrubo; kořenová zelenina je jen na doplnění, nastrouhaná.",
+       "V kastrůlku na špeku orestuj nastrouhanou mrkev, celer a petržel a dej stranou.",
+       "Maso osol a opepři. V hrnci rozehřej špek, osmaž na něm třetinu cibule dohněda, vyndej a na ostro postupně orestuj všechno maso.",
+       "K neosmažené cibuli přidej pórek. Zprudka rozehřej hrnec, dej dohromady maso, osmaženou i čerstvou cibuli a pórek a nech pustit šťávu.",
+       "Jakmile bublá, sniž teplotu, zasyp sladkou paprikou, přidej nastrouhanou zeleninu a poctivě míchej. Přiškvařený nápek nevadí — po podlití vodou dodá chuť.",
+       "Přidej česnek a polovinu protlaku. Po hodině bublání zbytek protlaku, po třech hodinách nastrouhaný křen a chilli."]},
+  {id:228,n:"Palačinky",t:35,k:"česká",p:"vejce",wg:0,fr:1,veg:0,obs:["lepek","laktóza","vejce"],
+   ing:[["hladká mouka",200,"g"],["mléko",500,"ml"],["vejce",4,"ks"],["olej",50,"ml"],["marmeláda",300,"g"]],
+   st:["Vše smíchej dohromady a pořádně rozmíchej — nejdřív kvedlačkou, pak mixérem, ať nezůstanou hrudky. Těsto je vcelku tekuté.",
+       "Nech těsto 20 minut odležet v chladu.",
+       "Rozpal teflonovou pánev, potři ji trochou oleje, nalij tenkou vrstvu těsta a smaž z obou stran. Kraje od pánve trochu odlupuj, líp se pak obrací.",
+       "První palačinka se nepovede nikdy, s tím si nelam hlavu. Plň marmeládou nebo tvarohem."]},
+  {id:229,n:"Bramboráky",t:40,k:"česká",p:"vejce",wg:0,fr:1,veg:0,obs:["lepek","laktóza","vejce"],
+   ing:[["brambory",1200,"g"],["vejce",2,"ks"],["cibule",1,"ks"],["mléko",200,"ml"],["hrubá mouka",120,"g"],["česnek",4,"stroužky"],["majoránka",5,"g"],["kmín drcený",5,"g"],["olej",150,"ml"]],
+   st:["Brambory nastrouhej najemno a zalij teplým mlékem.",
+       "Přidej koření, sůl, česnek, cibuli najemno a vejce, promíchej a přisyp mouku, aby hmota nebyla moc řídká.",
+       "Volitelně přidej nastrouhanou mrkev, vymačkané kysané zelí a sýr.",
+       "Na rozpáleném tuku hmotu lžící rozplácej co nejtenčeji a smaž dozlatova z obou stran."]},
+  {id:230,n:"Lečo s klobásou a vejci",t:30,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","vejce"],
+   ing:[["klobása",400,"g"],["paprika",6,"ks"],["rajčata",6,"ks"],["cibule",2,"ks"],["česnek",6,"stroužky"],["vejce",6,"ks"],["sladká paprika",10,"g"],["olej",40,"ml"],["chléb",400,"g"]],
+   st:["Na oleji zpěň cibulku a osmahni na ní klobásu (3 minuty).",
+       "Přidej papriky, po pár minutách rajčata, koření a česnek. Když zelenina nepustí dost vody, přiklop pokličkou.",
+       "Na závěr vmíchej vejce a nech zatáhnout.",
+       "Podávej s chlebem nebo bramborem. Místo klobásy lze použít mleté maso opečené zvlášť."]},
+  {id:231,n:"Vepřové na paprice",t:45,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","laktóza","lepek"],
+   ing:[["vepřové maso",600,"g"],["cibule",2,"ks"],["sladká paprika",15,"g"],["smetana ke šlehání",250,"ml"],["mléko",150,"ml"],["hladká mouka",30,"g"],["olej",40,"ml"],["těstoviny",400,"g"]],
+   st:["Maso nakrájej na malé kostičky. Na oleji nech cibuli dojít do sklovata.",
+       "Naházej maso neokořeněné a zprudka osmahni. Přidej dvě kávové lžičky papriky, sůl a pepř.",
+       "Radši duš než opékej, líp se to udělá.",
+       "Nalij smetanu, dořeď mlékem. Až se začne vařit, po troškách dolévej mouku rozmíchanou ve studené vodě, dokud omáčka nezhoustne. Podávej s těstovinami."]},
+  {id:232,n:"Kuře na paprice maminčino",t:40,k:"česká",p:"kuře",wg:0,fr:0,veg:0,obs:["laktóza","lepek"],
+   ing:[["kuřecí maso",600,"g"],["cibule",1,"ks"],["máslo",40,"g"],["sladká paprika",15,"g"],["smetana ke šlehání",250,"ml"],["mléko",200,"ml"],["hladká mouka",30,"g"],["těstoviny",400,"g"]],
+   st:["Cibulku osmahni na másle, přisyp sladkou papriku, sůl a špetku pepře.",
+       "Po chvilce přidej kuřecí maso nakrájené na kostky a nech změknout.",
+       "Přilij smetanu a mléko podle toho, kolik chceš omáčky, a míchej.",
+       "Mouku rozmíchej v mléce a postupně vlévej do omáčky — nezhoustne hned, přidávej po troškách. Podávej s těstovinami nebo rýží."]},
+  {id:233,n:"Krevety s chilli a česnekem",t:25,k:"španělská",p:"ryba",wg:0,fr:0,veg:0,obs:["ryby","laktóza"],
+   ing:[["krevety loupané",600,"g"],["máslo",100,"g"],["olivový olej",30,"ml"],["chilli lupínky",5,"g"],["česnek",4,"stroužky"],["majonéza",100,"g"],["bageta",1,"ks"]],
+   st:["Dřevěné špejle namoč na 20 minut do vody a napíchej na ně krevety.",
+       "Rozpal nepřilnavou pánev, přidej máslo, olej, chilli, rozmačkaný česnek a sůl a zahřívej asi minutu, dokud se máslo nerozpustí.",
+       "Na tuku postupně opékej krevetové špízy 3–4 minuty z každé strany.",
+       "Podávej s bagetou nebo bramborem a majonézou."]},
+  {id:234,n:"Květákové placičky de Babočka",t:40,k:"česká",p:"vejce",wg:0,fr:1,veg:1,obs:["vepřové","lepek","vejce"],
+   ing:[["květák",1,"ks"],["vejce",6,"ks"],["anglická slanina",150,"g"],["hrubá mouka",100,"g"],["strouhanka",30,"g"],["petrželka",1,"svazek"],["muškátový květ",2,"g"],["olej",100,"ml"]],
+   st:["Květák uvař v růžičkách, ne úplně doměkka (7 minut), a nasekej na hrubší kousky.",
+       "Osol, opepři, přidej muškátový květ, zasyp hrubou moukou a trochou strouhanky.",
+       "Přidej žloutky (na jeden květák 5–6 vajec), slaninu na kostičky a petrželku, promíchej.",
+       "Zlehka vmíchej sníh z bílků. Větší lžíci dávej na pánev a smaž asi 4 minuty po každé straně na střední teplotu."]},
+  {id:235,n:"Tuňákový salát s kuskusem",t:30,k:"blízkovýchodní",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby","lepek"],
+   ing:[["kuskus",130,"g"],["tuňák v konzervě",340,"g"],["kukuřice",400,"g"],["zelená paprika",4,"ks"],["salátová okurka",1,"ks"],["cibule",1,"ks"],["rozinky",100,"g"],["červený vinný ocet",120,"ml"],["olivový olej",60,"ml"],["dijonská hořčice",20,"g"]],
+   st:["Kuskus zalij dvojnásobným objemem vroucí vody, nech 5 minut zakryté stát a načechrej.",
+       "Ocet, olej, hořčici, špetku soli, cukru, pepře a česnekového prášku prošlehej v míse.",
+       "Vsyp kuskus, nasekanou papriku, okurku a cibuli, rozinky, slitého tuňáka a kukuřici.",
+       "Zamíchej a nech zakryté hodinu v chladu."]},
+  {id:236,n:"Marocko-francouzský salát s brie",t:25,k:"blízkovýchodní",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza","lepek"],
+   ing:[["sýr brie",240,"g"],["kuskus",340,"g"],["cibule",2,"ks"],["česnek",2,"stroužky"],["máslo",30,"g"],["olivový olej",30,"ml"],["petrželka",1,"svazek"]],
+   st:["Brie dej na 20 minut do mrazáku, ať se dobře krájí.",
+       "Na másle a oleji opeč nasekanou cibuli dozlatova, na poslední minutu přidej prolisovaný česnek.",
+       "Kuskus připrav podle návodu a načechrej.",
+       "Sýr zbav kůrky, nakrájej a opatrně smíchej s kuskusem, cibulí a nasekanou petrželkou. Osol a opepři."]},
+  {id:237,n:"Macaroni s nivou a ořechy",t:25,k:"italská",p:"sýr",wg:0,fr:0,veg:0,obs:["lepek","laktóza","ořechy"],
+   ing:[["těstoviny macaroni",320,"g"],["niva",150,"g"],["smetana ke šlehání",100,"ml"],["česnek",1,"stroužky"],["vlašské ořechy",50,"g"],["olej",60,"ml"],["petrželka",1,"svazek"]],
+   st:["Nivu nastrouhej nebo rozdrob.",
+       "Smíchej se smetanou, prolisovaným česnekem, nasekanými ořechy a olejem a na pánvičce nech rozpustit.",
+       "Vmíchej uvařené těstoviny.",
+       "Podávej posypané petrželkou, pepřem a ořechy."]},
+  {id:238,n:"Kuřecí rizoto se zeleninou",t:40,k:"italská",p:"kuře",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["kulatozrnná rýže",350,"g"],["kuřecí maso",500,"g"],["cibule",1,"ks"],["mražená zelenina",300,"g"],["bílé víno",100,"ml"],["parmazán",80,"g"],["olej",40,"ml"],["sladká paprika",5,"g"],["bazalka",5,"g"]],
+   st:["Na pánvi osmaž cibulku a přidej kuřecí maso nakrájené na nudličky, ochuť solí, pepřem, paprikou a bazalkou.",
+       "Přidej zeleninu a krátce restuj, podlij vínem.",
+       "Rýži uvař a vmíchej do směsi z pánve.",
+       "Na talíři zasyp parmazánem."]},
+  {id:239,n:"Co dům dal",t:35,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové","laktóza","lepek"],
+   ing:[["vepřové kotlety bez kosti",600,"g"],["cibule",1,"ks"],["sterilovaná sladkokyselá zelenina",400,"g"],["kysaná smetana",200,"g"],["polohrubá mouka",30,"g"],["mléko",150,"ml"],["rýže",320,"g"],["olej",40,"ml"]],
+   st:["Kotlety osol, opepři a zprudka osmahni na cibulce 2–3 minuty po obou stranách.",
+       "Ze zeleniny sceď nálev a vsyp ji na pánev, duš ještě 3 minuty. Nepodlévej vodou, dokud lehce nezaprášíš moukou — a přitom míchej, ať nevzniknou cucky.",
+       "Zalij smetanou a podle hustoty dolij vodu nebo mléko. Pro dochucení můžeš přilít nálev ze zeleniny.",
+       "Smetanu je třeba míchat, aby se nesrazila — u kyselého základu se to snadno stane. Podávej s rýží."]},
+  {id:240,n:"Rajská de maminka",t:150,k:"česká",p:"hovězí",wg:0,fr:0,veg:0,obs:["hovězí","lepek"],
+   ing:[["hovězí kližka",700,"g"],["rajčatový protlak",300,"g"],["bobkový list",3,"ks"],["mletá skořice",3,"g"],["polohrubá mouka",50,"g"],["cukr",30,"g"],["ocet",20,"ml"],["těstoviny",400,"g"]],
+   st:["Maso osol, opepři a uvař doměkka — v papiňáku asi 45 minut, jinak zhruba 2 hodiny.",
+       "Uvařené maso vyndej, do vývaru přidej protlak, bobkový list, skořici, sůl, pepř a cukr a svař.",
+       "Mouku rozmíchej vidličkou ve studené vodě (3 lžíce na 2 dcl) a po troškách vmíchávej do omáčky, dokud nezhoustne podle tvé představy.",
+       "Chuť má být sladkokyselá — pokud je protlak sladký, přidej pár kapek octa. Podávej s těstovinami."]},
+  {id:241,n:"Buřtguláš",t:45,k:"česká",p:"vepřové",wg:0,fr:0,veg:1,obs:["vepřové"],
+   ing:[["špekáčky",500,"g"],["cibule",2,"ks"],["paprika",2,"ks"],["česnek",3,"stroužky"],["brambory",800,"g"],["slanina",100,"g"],["sladká paprika",15,"g"],["polohrubá mouka",30,"g"],["olej",40,"ml"],["bazalka",5,"g"]],
+   st:["Na oleji osmaž cibuli a slaninu na kostičky.",
+       "Přidej nakrájené špekáčky, papriku, česnek, koření a bylinky, po osmahnutí přidej brambory na drobné kostičky.",
+       "Podlij trochou vody a přiklop pokličkou.",
+       "Až brambory změknou, dolij trochu vody na omáčku a zahusť moukou rozmíchanou ve vodě."]},
+  {id:242,n:"Boovův rychloguláš",t:25,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","lepek"],
+   ing:[["vepřová kýta",600,"g"],["cibule",2,"ks"],["solamyl",20,"g"],["sladká paprika",20,"g"],["česnek",3,"stroužky"],["med",20,"g"],["ocet",10,"ml"],["masový vývar",200,"ml"],["olej",40,"ml"],["chléb",400,"g"]],
+   st:["Maso nakrájej na tenoučké nudličky, v misce smíchej s lžičkou solamylu, solí, pepřem, paprikou, česnekem, chilli, medem a octem a promačkej rukou.",
+       "Cibuli překroj napůl a nakrájej na tenoučké dílky.",
+       "Maso zprudka osmahni na oleji 2–3 minuty a vyndej z pánve tak, aby v ní zůstal olej.",
+       "Vsyp cibuli a nech lehce zesklovatět, vrať maso a podlij vývarem. Udělá se šťávička — promíchej a hotovo. Podávej s chlebem."]},
+  {id:243,n:"Bramboračka se sušenými houbami",t:50,k:"česká",p:"jiné",wg:0,fr:0,veg:1,obs:["lepek"],
+   ing:[["brambory",900,"g"],["mrkev",2,"ks"],["celer",1,"ks"],["petržel kořen",1,"ks"],["cibule",1,"ks"],["česnek",3,"stroužky"],["sušené houby",30,"g"],["polohrubá mouka",50,"g"],["olej",50,"ml"],["majoránka",5,"g"],["kmín drcený",5,"g"]],
+   st:["Sušené houby hned na začátku zalij horkou vodou a přiklop.",
+       "Zeleninu a brambory nakrájej na drobné kousky, osol, okmínuj a dej vařit. Jakmile se začnou vařit, přidej houby.",
+       "Zvlášť připrav jíšku: rozehřej olej, vsyp mouku, osmahni, přidej koření a chvíli míchej. Odstav a nech zchladnout.",
+       "Až je zelenina hotová, jíšku vmíchej a ještě několik minut povař, aby polévka zhoustla. Dochuť majoránkou a česnekem."]},
+  {id:244,n:"Penne s tuňákem a paprikou",t:30,k:"italská",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby","lepek"],
+   ing:[["těstoviny penne",320,"g"],["tuňák v konzervě",150,"g"],["žlutá a červená paprika",350,"g"],["rajčata",200,"g"],["jarní cibulka",1,"svazek"],["olej",30,"ml"],["bazalka",1,"svazek"]],
+   st:["Na oleji zpěň nasekanou jarní cibulku, přihoď proužky paprik a opékej 3 minuty.",
+       "Přidej rajčata na kostky, špetku chilli a sůl a vař 20 minut.",
+       "Smíchej s tuňákem, uvařenými penne a bazalkou."]},
+  {id:245,n:"Zapečené brambory s masem a tymiánem",t:100,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","laktóza"],
+   ing:[["brambory",1500,"g"],["cibule",2,"ks"],["česnek",3,"stroužky"],["vepřová kotleta",400,"g"],["strouhaný sýr",200,"g"],["tymián",5,"snítky"],["máslo",40,"g"]],
+   st:["Osmahni cibuli s česnekem.",
+       "Maso nakrájej na tenké proužky, osol, opepři, zasyp tymiánem a přismahni.",
+       "Pekáček vymaž máslem. Brambory nakrájej na tenké plátky, slij vodu, osol a otymiánuj.",
+       "Vrstvi brambory a maso s cibulí, dokud se vejde, zakonči bramborami.",
+       "Peč na 180 °C hodinu, z toho 40 minut přikryté. Pak přidej sýr a dopeč dalších 20 minut."]},
+  {id:246,n:"Karbanátky",t:45,k:"česká",p:"vepřové",wg:0,fr:1,veg:0,obs:["vepřové","hovězí","lepek","vejce"],
+   ing:[["mleté maso (vepřové a hovězí)",1000,"g"],["cibule",2,"ks"],["francouzská hořčice",50,"g"],["majoránka",5,"g"],["vejce",2,"ks"],["kečup",60,"g"],["česnek",5,"stroužky"],["strouhanka",100,"g"],["koření na mleté maso",10,"g"],["olej",150,"ml"]],
+   st:["Cibuli nakrájej najemno a smíchej s masem, hořčicí, majoránkou, vejci, kečupem a prolisovaným česnekem.",
+       "Osol, opepři a přidej koření na mleté maso.",
+       "Zahusť strouhankou z čerstvého toustového chleba, ať se směs dá tvarovat.",
+       "Tvaruj karbanátky a smaž na oleji dozlatova z obou stran."]},
+  {id:247,n:"Naložená treska s paprikou a cibulí",t:35,k:"česká",p:"ryba",wg:0,fr:0,veg:1,obs:["ryby"],
+   ing:[["treska filet",700,"g"],["olivový olej",60,"ml"],["citron",1,"ks"],["med",20,"g"],["česnek",3,"stroužky"],["oregano",5,"g"],["paprika",2,"ks"],["cibule",2,"ks"],["brambory",800,"g"]],
+   st:["Marináda: olivový olej, citronová šťáva, med, prolisovaný česnek, oregano, sůl a pepř.",
+       "Papriku a cibuli nakrájej a přidej k marinádě.",
+       "Rybu nalož přes noc do lednice.",
+       "Druhý den jen upeč na 200 °C asi 20 minut i se zeleninou, podávej s bramborem."]},
+  {id:248,n:"Sekaná ve slanině",t:80,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","lepek","vejce","laktóza"],
+   ing:[["mleté maso",1000,"g"],["cibule",4,"ks"],["česnek",5,"stroužky"],["vejce",3,"ks"],["strouhanka",120,"g"],["anglická slanina",200,"g"],["strouhaný sýr",100,"g"],["majoránka",5,"g"],["petrželka",1,"svazek"],["bazalka",5,"g"]],
+   st:["Cibuli s česnekem lehce orestuj a nech vychladnout.",
+       "Smíchej s masem, vejci, strouhankou, sýrem, sušenými i čerstvými bylinkami, solí a pepřem.",
+       "Vytvaruj bochník a zabal do plátků slaniny.",
+       "Peč něco přes hodinu na 180 °C."]},
+  {id:249,n:"Bramborák na pekáč s uzeným",t:60,k:"česká",p:"vepřové",wg:0,fr:0,veg:0,obs:["vepřové","lepek","vejce"],
+   ing:[["brambory",1000,"g"],["uzené maso",400,"g"],["vejce",3,"ks"],["česnek",10,"stroužky"],["hrubá mouka",150,"g"],["krupice",30,"g"],["petrželka",1,"svazek"],["majoránka",5,"g"],["mléko",200,"ml"]],
+   st:["Brambory uvař a nastrouhej (jde to i ze syrových — pak je zalij horkým mlékem).",
+       "Uzené nakrájej na kostičky.",
+       "Smíchej brambory, uzené, vejce, prolisovaný česnek, mouku, krupici, petrželku, majoránku, sůl a pepř.",
+       "Rozetři na vymazaný pekáč a peč asi 45 minut."]},
+  {id:250,n:"Lohikeitto — severská lososová polévka",t:35,k:"severská",p:"ryba",tuc:1,wg:0,fr:0,veg:1,obs:["ryby","laktóza"],
+   ing:[["losos filet",600,"g"],["mrkev",2,"ks"],["pórek",1,"ks"],["brambory",500,"g"],["smetana ke šlehání",250,"ml"],["máslo",20,"g"],["kopr",1,"svazek"],["citron",1,"ks"]],
+   st:["Na rozpuštěném másle zlehka osmahni nakrájenou mrkev a pórek — maximálně 2 minuty.",
+       "Brambory nakrájej na malé kostičky a vař v litru osolené vody 10 minut.",
+       "Přidej osoleného lososa nakrájeného na kousky a vař mírně dalších 5 minut.",
+       "Vše přelij do hrnce s mrkví a pórkem, přidej smetanu a přiveď k varu, povař maximálně 2 minuty.",
+       "Nakonec vmíchej nakrájený kopr (už nevař, ať je voňavý) a dochuť solí, pepřem a citronem — kyselost si každý dolaď na talíři."]},
+  {id:251,n:"Polévka z pečené mrkve s pomerančem a halloumi",t:60,k:"blízkovýchodní",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["mrkev",1000,"g"],["cibule",2,"ks"],["pomeranč",3,"ks"],["sýr na gril halloumi",200,"g"],["máta",1,"svazek"],["chilli",1,"ks"],["zeleninový vývar",1000,"ml"],["olej",40,"ml"],["římský kmín mletý",3,"g"]],
+   st:["Na plech nakrájej cibuli a mrkev, pokapej olejem, osol, opepři a peč na 250 °C asi půl hodiny. Mrkev musí být úplně měkká.",
+       "Vsyp do horkého vývaru a vše umixuj. Už nevař.",
+       "Přidej nakrájenou chilli papričku — polévka má být pálivá jen náznakem, takže radši začni s méně.",
+       "Přidej šťávu z pomerančů a najemno nakrájenou mátu, dochuť solí, pepřem a špetkou římského kmínu.",
+       "K dokonalosti přidej na talíř grilovaný halloumi."]},
+  {id:252,n:"Polévka z medvědího česneku",t:25,k:"česká",p:"sýr",wg:0,fr:0,veg:1,obs:["laktóza"],
+   ing:[["medvědí česnek",150,"g"],["smetana ke šlehání",250,"ml"],["smetanový sýr",100,"g"],["brambory",1,"ks"],["krevety",200,"g"]],
+   st:["V hrnci vař litr vody s medvědím česnekem asi 5 minut. Pro hustší polévku přidej nakrájenou bramboru a vař ji spolu.",
+       "Rozmixuj, přidej šlehačku a povař asi 2 minuty — převařená šlehačka chutná líp.",
+       "Přidej smetanový sýr a nech rozpustit.",
+       "Krevety přelij v cedníku horkou vodou a dej do talíře do horké polévky. Nevař je, jen prohřej."]},
+].map(r=>({ ...r, tom: true }));
+
 // ---------- state ----------
 const EXCL = ["vepřové","hovězí","ryby","lepek","laktóza","vejce","ořechy","sója"];
 const SLOTS = ["Všední den 1","Všední den 2","Všední den 3","Víkend 1","Víkend 2"];
 const KEY = "planovac-vecere-v1";
 let S = { adults: 2, kids: "", excl: [], dislikes: [], time: "stredni",
-          standing: [], favs: [], plan: null, locked: [false,false,false,false,false], userRecipes: [], extRecipes: [], seen: {} };
+          standing: [], favs: [], plan: null, locked: [false,false,false,false,false], userRecipes: [], extRecipes: [], seen: {}, useTomas: true };
 try { const saved = JSON.parse(localStorage.getItem(KEY)); if (saved) S = Object.assign(S, saved); } catch {}
 const save = () => localStorage.setItem(KEY, JSON.stringify(S));
-const RALL = () => R.concat(S.userRecipes || []).concat(S.extRecipes || []);
+const RALL = () => R.concat(TOM).concat(S.userRecipes || []).concat(S.extRecipes || []);
 const $ = (id) => document.getElementById(id);
 
 // ---------- household factor ----------
@@ -600,6 +951,7 @@ function drawGroup(){
   return TARGETS[0][0];
 }
 function hardFilter(r, fx){
+  if (r.tom && !S.useTomas) return false;
   if (r.obs.some(o=>S.excl.includes(o))) return false;
   if (S.excl.includes("vepřové") && r.p==="vepřové") return false;
   if (S.excl.includes("hovězí") && r.p==="hovězí") return false;
@@ -623,6 +975,7 @@ function slotScore(r, picked, fx){
   if (r.fr) s -= rs.some(x=>x.fr) ? 2 : 0.3;
   if (S.favs.includes(r.id)) s += 2;
   if (r.user) s += 2.2;
+  if (r.tom && S.useTomas) s += 3;
   if (S.time==="rychle") s -= Math.max(0, r.t-30)/15;
   if (S.time==="stredni") s -= Math.max(0, r.t-50)/20;
   s += fxScore(r, fx) || 0;
@@ -814,6 +1167,11 @@ function render(){
   $("dislikes").innerHTML = S.dislikes.map((d,i)=>
     `<span class="tag">${d}<button data-di="${i}" aria-label="Smazat ${d}">×</button></span>`).join("");
   document.querySelectorAll("#timePref button").forEach(b=>b.classList.toggle("on", b.dataset.v===S.time));
+  document.querySelectorAll("#tomToggle button").forEach(b=>
+    b.classList.toggle("on", (b.dataset.tom==="1") === !!S.useTomas));
+  $("tomHint").textContent = S.useTomas
+    ? `Rodinných receptů: ${TOM.length}. Generátor je upřednostní před obecnými.`
+    : `Rodinné recepty se negenerují. Ručně je pořád vybereš přes „…“.`;
   $("userRecCount").textContent = (S.userRecipes||[]).length
     ? `Máte ${S.userRecipes.length} vlastních receptů — generují se i nabízejí jako ostatní.`
     : "Zatím žádné. Vlastní recepty se zapojí do generování podle své kuchyně.";
@@ -838,6 +1196,7 @@ function render(){
             <span>${r.t} min</span><span>${r.k}</span><span>${r.p}</span>
             ${fav?'<span class="fav">★ oblíbené</span>':""}
             ${r.ext?'<span>z Rohlíku</span>':""}
+            ${r.tom?'<span class="fav">rodinný recept</span>':""}
           </div>
         </div>
         <div class="meal-actions">
@@ -874,7 +1233,7 @@ function renderPicker(){
       const ok = hardFilter(r, fx);
       const fav = S.favs.includes(r.id);
       return `<div class="pick" style="${ok?"":"opacity:.45"}">
-        <span class="n" data-choose="${r.id}">${r.n}${r.user?' <span class="badge">vlastní</span>':""}${r.ext?' <span class="badge">Rohlík</span>':""}</span>
+        <span class="n" data-choose="${r.id}">${r.n}${r.user?' <span class="badge">vlastní</span>':""}${r.tom?' <span class="badge">rodinný</span>':""}${r.ext?' <span class="badge">Rohlík</span>':""}</span>
         <span class="m">${r.t} min · ${r.k}</span>
         <button class="ghost small" data-fav="${r.id}" title="Oblíbené">${fav?"★":"☆"}</button>
         ${(r.user||r.ext)?`<button class="ghost small" data-delrec="${r.id}" title="Smazat recept">🗑</button>`:""}
@@ -915,6 +1274,7 @@ document.addEventListener("click", (ev)=>{
     save(); render();
     if ($("picker").open) renderPicker();
   }
+  else if (d.tom !== undefined){ S.useTomas = d.tom === "1"; save(); render(); }
   else if (d.robs !== undefined){ b.classList.toggle("on"); }
 });
 $("addRecipeBtn").addEventListener("click", ()=>{
